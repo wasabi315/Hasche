@@ -1,0 +1,10 @@
+cradle:
+  cabal:
+    - path: "src"
+      component: "lib:minischeme"
+
+    - path: "app/Main.hs"
+      component: "minischeme:exe:minischeme"
+
+    - path: "test"
+      component: "minischeme:test:minischeme-test"
