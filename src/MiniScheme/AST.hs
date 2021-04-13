@@ -4,7 +4,6 @@
 module MiniScheme.AST where
 
 import Data.Text (Text)
-import Data.Text qualified as Text
 
 data Exp
   = Const Const
