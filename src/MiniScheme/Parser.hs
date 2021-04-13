@@ -24,7 +24,7 @@ pExp =
     [ AST.Const <$> pConst,
       AST.Id <$> pId,
       between (char '(' *> space) (space <* char ')') do
-        f : xs <- some (pExp <* space)
+        f : xs <- (:) <$> pExp <*> some (space1 *> pExp)
         pure $ AST.App f xs
     ]
 

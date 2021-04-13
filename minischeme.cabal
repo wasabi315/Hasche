@@ -12,6 +12,7 @@ extra-source-files: CHANGELOG.md
 library
     exposed-modules:  MiniScheme.AST
                     , MiniScheme.Parser
+                    , MiniScheme.Interpreter
     build-depends:    base ^>=4.14.1.0
                     , text
                     , megaparsec
