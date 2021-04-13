@@ -35,8 +35,18 @@ pId =
     [ "+" <$ char '+',
       "-" <$ char '-',
       "*" <$ char '*',
-      "/" <$ char '/'
+      "/" <$ char '/',
+      "=" <$ char '=',
+      "<=" <$ string "<=",
+      "<" <$ char '<',
+      ">=" <$ string ">=",
+      ">" <$ char '>'
     ]
 
 pConst :: Parser AST.Const
-pConst = Lexer.decimal
+pConst =
+  choice
+    [ AST.Bool True <$ string "#t",
+      AST.Bool False <$ string "#f",
+      AST.Int <$> Lexer.decimal
+    ]

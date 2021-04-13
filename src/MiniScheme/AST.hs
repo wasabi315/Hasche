@@ -13,4 +13,12 @@ data Exp
 
 type Id = Text
 
-type Const = Integer
+-- type Const = Integer
+data Const
+  = Bool Bool
+  | Int Integer
+  deriving (Eq)
+
+instance Show Const where
+  show (Bool b) = if b then "#t" else "#f"
+  show (Int n) = show n

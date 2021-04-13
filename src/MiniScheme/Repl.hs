@@ -25,5 +25,5 @@ repl = do
         | txt == "exit" -> pure ()
         | otherwise ->
           case MS.parseExp txt >>= MS.interpret of
-            Right n -> print n >> loop
+            Right e -> print e >> loop
             Left err -> putStrLn err >> loop
