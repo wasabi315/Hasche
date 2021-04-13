@@ -1,5 +1,8 @@
+{-# LANGUAGE ImportQualifiedPost #-}
+
 module Main where
 
+import MiniScheme.Repl as MS
+
 main :: IO ()
-main = do
-  putStrLn "Hello, Haskell!"
+main = MS.repl
