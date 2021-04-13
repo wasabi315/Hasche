@@ -5,6 +5,7 @@
 
 module MiniScheme.Parser where
 
+import Data.Bifunctor
 import Data.Text (Text)
 import Data.Void
 import MiniScheme.AST qualified as AST
@@ -15,8 +16,8 @@ import Text.Megaparsec.Char.Lexer qualified as Lexer
 -- The parser type
 type Parser = Parsec Void Text
 
-parseExp :: Text -> Maybe AST.Exp
-parseExp = parseMaybe pExp
+parseExp :: Text -> Either String AST.Exp
+parseExp = first errorBundlePretty . parse pExp ""
 
 pExp :: Parser AST.Exp
 pExp =
