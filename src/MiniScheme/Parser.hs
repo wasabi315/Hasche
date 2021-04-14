@@ -22,11 +22,19 @@ parseExp = first errorBundlePretty . parse pExp ""
 pExp :: Parser AST.Exp
 pExp =
   choice
-    [ AST.Const <$> pConst,
-      AST.Id <$> pId,
+    [ AST.Atom <$> pAtom,
       between (char '(' *> space) (space <* char ')') do
         f : xs <- (:) <$> pExp <*> many (space1 *> pExp)
         pure $ AST.App f xs
+    ]
+
+pAtom :: Parser AST.Atom
+pAtom =
+  choice
+    [ AST.Bool True <$ string "#t",
+      AST.Bool False <$ string "#f",
+      AST.Int <$> Lexer.decimal,
+      AST.Id <$> pId
     ]
 
 pId :: Parser AST.Id
@@ -44,12 +52,4 @@ pId =
       string "number?",
       string "boolean?",
       string "not"
-    ]
-
-pConst :: Parser AST.Const
-pConst =
-  choice
-    [ AST.Bool True <$ string "#t",
-      AST.Bool False <$ string "#f",
-      AST.Int <$> Lexer.decimal
     ]

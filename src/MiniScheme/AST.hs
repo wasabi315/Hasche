@@ -6,18 +6,14 @@ module MiniScheme.AST where
 import Data.Text (Text)
 
 data Exp
-  = Const Const
-  | Id Id
+  = Atom Atom
   | App Exp [Exp]
   deriving (Show)
 
-type Id = Text
-
-data Const
+data Atom
   = Bool Bool
   | Int Integer
-  deriving (Eq)
+  | Id Id
+  deriving (Show)
 
-instance Show Const where
-  show (Bool b) = if b then "#t" else "#f"
-  show (Int n) = show n
+type Id = Text

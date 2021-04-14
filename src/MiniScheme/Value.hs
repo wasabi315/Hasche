@@ -19,11 +19,11 @@ instance Show Value where
   show (Bool b) = if b then "#t" else "#f"
   show (Proc _) = "<procedure>"
 
-interpret :: AST.Exp -> Either String Value
+interpret :: AST.Atom -> Either String Value
 interpret = \case
-  AST.Const (AST.Int n) ->
+  AST.Int n ->
     Right (Int n)
-  AST.Const (AST.Bool b) ->
+  AST.Bool b ->
     Right (Bool b)
   AST.Id "number?" ->
     Right $ Proc \case
@@ -79,7 +79,7 @@ interpret = \case
       [v] -> expectBool v >>= Right . Bool . not
       _ -> Left "illegal number of arguments"
   _ ->
-    Left "unexpected form"
+    Left "unexpected atom"
 
 expectInt :: Value -> Either String Integer
 expectInt (Int n) = Right n
