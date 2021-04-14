@@ -13,11 +13,9 @@ eval :: AST.Exp -> Either String Value
 eval = \case
   AST.Atom a -> evalAtom a
   AST.App e es -> do
-    func <- eval e
+    func <- eval e >>= expectProc
     args <- traverse eval es
-    case func of
-      Proc f -> f args
-      _ -> Left "Cannot apply to non procedure value"
+    func args
 
 data Value
   = Int Integer
@@ -103,3 +101,7 @@ expectInt _ = Left "expect number"
 expectBool :: Value -> Either String Bool
 expectBool (Bool b) = Right b
 expectBool _ = Left "expect boolean"
+
+expectProc :: Value -> Either String ([Value] -> Either String Value)
+expectProc (Proc f) = Right f
+expectProc _ = Left "expect procedure"
