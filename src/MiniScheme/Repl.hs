@@ -29,7 +29,7 @@ repl = do
         | txt == ":quit" || txt == ":q" ->
           pure ()
         | otherwise ->
-          case MS.parseExp txt >>= MS.interpret of
+          case MS.parseExp txt >>= MS.eval of
             Right e -> print e >> loop
             Left err -> putStrLn err >> loop
 
