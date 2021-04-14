@@ -12,12 +12,11 @@ import Data.HashMap.Strict qualified as HM
 import MiniScheme.AST qualified as AST
 
 eval :: AST.Exp -> Either String Value
-eval = \case
-  AST.Atom a -> evalAtom a
-  AST.App e es -> do
-    func <- eval e >>= expectProc
-    args <- traverse eval es
-    func args
+eval (AST.Atom a) = evalAtom a
+eval (AST.App e es) = do
+  func <- eval e >>= expectProc
+  args <- traverse eval es
+  func args
 
 type Env = HashMap AST.Id Value
 
@@ -32,15 +31,12 @@ instance Show Value where
   show (Proc _) = "<procedure>"
 
 evalAtom :: AST.Atom -> Either String Value
-evalAtom = \case
-  AST.Int n ->
-    Right (Int n)
-  AST.Bool b ->
-    Right (Bool b)
-  AST.Id i ->
-    case HM.lookup i defaultEnv of
-      Just v -> Right v
-      Nothing -> Left "unknown id"
+evalAtom (AST.Int n) = Right (Int n)
+evalAtom (AST.Bool b) = Right (Bool b)
+evalAtom (AST.Id i) =
+  case HM.lookup i defaultEnv of
+    Just v -> Right v
+    Nothing -> Left "unknown id"
 
 expectInt :: Value -> Either String Integer
 expectInt (Int n) = Right n
