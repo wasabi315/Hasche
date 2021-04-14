@@ -11,6 +11,10 @@ interpret :: AST.Exp -> Either String AST.Const
 interpret = \case
   AST.Const n ->
     Right n
+  AST.App (AST.Id "number?") [e] ->
+    interpret e >>= \case
+      AST.Int _ -> Right (AST.Bool True)
+      _ -> Right (AST.Bool False)
   AST.App (AST.Id "+") es ->
     AST.Int . sum <$> traverse (interpret >=> expectInt) es
   AST.App (AST.Id "-") [] ->
@@ -27,6 +31,10 @@ interpret = \case
     (AST.Int .) . div
       <$> (interpret >=> expectInt) e
       <*> fmap sum (traverse (interpret >=> expectInt) es)
+  AST.App (AST.Id "boolean?") [e] ->
+    interpret e >>= \case
+      AST.Bool _ -> Right (AST.Bool True)
+      _ -> Right (AST.Bool False)
   AST.App (AST.Id "=") [e1, e2] -> do
     n1 <- interpret e1 >>= expectInt
     n2 <- interpret e2 >>= expectInt

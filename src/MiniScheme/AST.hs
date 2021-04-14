@@ -13,7 +13,6 @@ data Exp
 
 type Id = Text
 
--- type Const = Integer
 data Const
   = Bool Bool
   | Int Integer

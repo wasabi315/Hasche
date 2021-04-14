@@ -37,10 +37,12 @@ pId =
       "*" <$ char '*',
       "/" <$ char '/',
       "=" <$ char '=',
-      "<=" <$ string "<=",
+      string "<=",
       "<" <$ char '<',
-      ">=" <$ string ">=",
-      ">" <$ char '>'
+      string ">=",
+      ">" <$ char '>',
+      string "number?",
+      string "boolean?"
     ]
 
 pConst :: Parser AST.Const
