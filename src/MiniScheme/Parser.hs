@@ -51,5 +51,6 @@ pId =
       ">" <$ char '>',
       string "number?",
       string "boolean?",
+      string "procedure?",
       string "not"
     ]

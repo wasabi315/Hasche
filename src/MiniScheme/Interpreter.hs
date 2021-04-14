@@ -45,6 +45,11 @@ evalAtom = \case
       [Bool _] -> Right (Bool True)
       [_] -> Right (Bool False)
       _ -> Left "illegal number of arguments"
+  AST.Id "procedure?" ->
+    Right $ Proc \case
+      [Proc _] -> Right (Bool True)
+      [_] -> Right (Bool False)
+      _ -> Left "illegal number of arguments"
   AST.Id "+" ->
     Right $ Proc (fmap (Int . sum) . traverse expectInt)
   AST.Id "-" ->
