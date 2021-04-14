@@ -7,6 +7,8 @@
 module MiniScheme.Interpreter where
 
 import Control.Monad
+import Data.HashMap.Strict (HashMap)
+import Data.HashMap.Strict qualified as HM
 import MiniScheme.AST qualified as AST
 
 eval :: AST.Exp -> Either String Value
@@ -16,6 +18,8 @@ eval = \case
     func <- eval e >>= expectProc
     args <- traverse eval es
     func args
+
+type Env = HashMap AST.Id Value
 
 data Value
   = Int Integer
@@ -33,66 +37,10 @@ evalAtom = \case
     Right (Int n)
   AST.Bool b ->
     Right (Bool b)
-  AST.Id "number?" ->
-    Right $ Proc \case
-      [Int _] -> Right (Bool True)
-      [_] -> Right (Bool False)
-      _ -> Left "illegal number of arguments"
-  AST.Id "boolean?" ->
-    Right $ Proc \case
-      [Bool _] -> Right (Bool True)
-      [_] -> Right (Bool False)
-      _ -> Left "illegal number of arguments"
-  AST.Id "procedure?" ->
-    Right $ Proc \case
-      [Proc _] -> Right (Bool True)
-      [_] -> Right (Bool False)
-      _ -> Left "illegal number of arguments"
-  AST.Id "+" ->
-    Right $ Proc (fmap (Int . sum) . traverse expectInt)
-  AST.Id "-" ->
-    Right . Proc $
-      traverse expectInt >=> \case
-        [] -> Left "expect at least one number"
-        n : ns -> Right $ Int (n - sum ns)
-  AST.Id "*" ->
-    Right $ Proc (fmap (Int . product) . traverse expectInt)
-  AST.Id "/" ->
-    Right . Proc $
-      traverse expectInt >=> \case
-        [] -> Left "expect at least one number"
-        n : ns -> Right $ Int (n `div` product ns)
-  AST.Id "=" ->
-    Right . Proc $
-      traverse expectInt >=> \case
-        [n1, n2] -> Right $ Bool (n1 == n2)
-        _ -> Left "illegal number of arguments"
-  AST.Id ">" ->
-    Right . Proc $
-      traverse expectInt >=> \case
-        [n1, n2] -> Right $ Bool (n1 > n2)
-        _ -> Left "illegal number of arguments"
-  AST.Id ">=" ->
-    Right . Proc $
-      traverse expectInt >=> \case
-        [n1, n2] -> Right $ Bool (n1 >= n2)
-        _ -> Left "illegal number of arguments"
-  AST.Id "<" ->
-    Right . Proc $
-      traverse expectInt >=> \case
-        [n1, n2] -> Right $ Bool (n1 < n2)
-        _ -> Left "illegal number of arguments"
-  AST.Id "<=" ->
-    Right . Proc $
-      traverse expectInt >=> \case
-        [n1, n2] -> Right $ Bool (n1 <= n2)
-        _ -> Left "illegal number of arguments"
-  AST.Id "not" ->
-    Right $ Proc \case
-      [v] -> expectBool v >>= Right . Bool . not
-      _ -> Left "illegal number of arguments"
-  _ ->
-    Left "unexpected atom"
+  AST.Id i ->
+    case HM.lookup i defaultEnv of
+      Just v -> Right v
+      Nothing -> Left "unknown id"
 
 expectInt :: Value -> Either String Integer
 expectInt (Int n) = Right n
@@ -105,3 +53,79 @@ expectBool _ = Left "expect boolean"
 expectProc :: Value -> Either String ([Value] -> Either String Value)
 expectProc (Proc f) = Right f
 expectProc _ = Left "expect procedure"
+
+defaultEnv :: Env
+defaultEnv =
+  HM.fromList
+    [ ( "number?",
+        Proc \case
+          [Int _] -> Right (Bool True)
+          [_] -> Right (Bool False)
+          _ -> Left "illegal number of arguments"
+      ),
+      ( "boolean?",
+        Proc \case
+          [Bool _] -> Right (Bool True)
+          [_] -> Right (Bool False)
+          _ -> Left "illegal number of arguments"
+      ),
+      ( "procedure?",
+        Proc \case
+          [Proc _] -> Right (Bool True)
+          [_] -> Right (Bool False)
+          _ -> Left "illegal number of arguments"
+      ),
+      ( "+",
+        Proc (fmap (Int . sum) . traverse expectInt)
+      ),
+      ( "-",
+        Proc $
+          traverse expectInt >=> \case
+            [] -> Left "expect at least one number"
+            n : ns -> Right $ Int (n - sum ns)
+      ),
+      ( "*",
+        Proc (fmap (Int . product) . traverse expectInt)
+      ),
+      ( "/",
+        Proc $
+          traverse expectInt >=> \case
+            [] -> Left "expect at least one number"
+            n : ns -> Right $ Int (n `div` product ns)
+      ),
+      ( "=",
+        Proc $
+          traverse expectInt >=> \case
+            [n1, n2] -> Right $ Bool (n1 == n2)
+            _ -> Left "illegal number of arguments"
+      ),
+      ( ">",
+        Proc $
+          traverse expectInt >=> \case
+            [n1, n2] -> Right $ Bool (n1 > n2)
+            _ -> Left "illegal number of arguments"
+      ),
+      ( ">=",
+        Proc $
+          traverse expectInt >=> \case
+            [n1, n2] -> Right $ Bool (n1 >= n2)
+            _ -> Left "illegal number of arguments"
+      ),
+      ( "<",
+        Proc $
+          traverse expectInt >=> \case
+            [n1, n2] -> Right $ Bool (n1 < n2)
+            _ -> Left "illegal number of arguments"
+      ),
+      ( "<=",
+        Proc $
+          traverse expectInt >=> \case
+            [n1, n2] -> Right $ Bool (n1 <= n2)
+            _ -> Left "illegal number of arguments"
+      ),
+      ( "not",
+        Proc \case
+          [v] -> expectBool v >>= Right . Bool . not
+          _ -> Left "illegal number of arguments"
+      )
+    ]
