@@ -42,7 +42,8 @@ pId =
       string ">=",
       ">" <$ char '>',
       string "number?",
-      string "boolean?"
+      string "boolean?",
+      string "not"
     ]
 
 pConst :: Parser AST.Const

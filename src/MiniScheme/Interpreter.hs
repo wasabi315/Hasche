@@ -35,6 +35,8 @@ interpret = \case
     interpret e >>= \case
       AST.Bool _ -> Right (AST.Bool True)
       _ -> Right (AST.Bool False)
+  AST.App (AST.Id "not") [e] ->
+    interpret e >>= expectBool >>= Right . AST.Bool . not
   AST.App (AST.Id "=") [e1, e2] -> do
     n1 <- interpret e1 >>= expectInt
     n2 <- interpret e2 >>= expectInt
@@ -74,4 +76,4 @@ expectInt (AST.Int n) = Right n
 
 expectBool :: AST.Const -> Either String Bool
 expectBool (AST.Bool b) = Right b
-expectBool (AST.Int _) = Left "expect bool but got number"
+expectBool (AST.Int _) = Left "expect boolean but got number"
