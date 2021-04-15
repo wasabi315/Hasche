@@ -48,8 +48,13 @@ pAtom =
     [ AST.Bool True <$ string "#t",
       AST.Bool False <$ string "#f",
       AST.Int <$> Lexer.decimal,
+      AST.Str <$> pStr,
       AST.Id <$> pId
     ]
+
+pStr :: Parser Text
+pStr = between (char '"') (char '"') do
+  takeWhile1P Nothing (/= '"')
 
 pId :: Parser AST.Id
 pId = do

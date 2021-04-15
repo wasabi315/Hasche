@@ -21,6 +21,7 @@ import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Text.Read qualified as Text
 import MiniScheme.AST qualified as AST
 import Prelude hiding (lookup)
 
@@ -50,11 +51,13 @@ instance Show Value where
 data Value' m
   = Int Integer
   | Bool Bool
+  | Str Text
   | Proc ([Value' m] -> m (Value' m))
 
 instance Show (Value' m) where
   show (Int n) = show n
   show (Bool b) = if b then "#t" else "#f"
+  show (Str s) = show s
   show (Proc _) = "<procedure>"
 
 type MonadInterp m = (MonadThrow m, MonadIO m)
@@ -69,6 +72,7 @@ eval (AST.App e es) = do
 evalAtom :: MonadInterp m => AST.Atom -> m (Value' m)
 evalAtom (AST.Int n) = pure $! Int n
 evalAtom (AST.Bool b) = pure $! Bool b
+evalAtom (AST.Str s) = pure $! Str s
 evalAtom (AST.Id i) = defaultEnv >>= flip lookup i
 
 expectInt :: MonadInterp m => Value' m -> m Integer
@@ -78,6 +82,10 @@ expectInt _ = throw (EvalError "expect number")
 expectBool :: MonadInterp m => Value' m -> m Bool
 expectBool (Bool b) = pure b
 expectBool _ = throw (EvalError "expect boolean")
+
+expectStr :: MonadInterp m => Value' m -> m Text
+expectStr (Str s) = pure s
+expectStr _ = throw (EvalError "expect string")
 
 expectProc :: MonadInterp m => Value' m -> m ([Value' m] -> m (Value' m))
 expectProc (Proc f) = pure f
@@ -131,6 +139,12 @@ defaultEnv = liftIO do
   HT.insert binds "boolean?" $
     Proc \case
       [Bool _] -> pure $! Bool True
+      [_] -> pure $! Bool False
+      _ -> throw (EvalError "illegal number of arguments")
+
+  HT.insert binds "string?" $
+    Proc \case
+      [Str _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
@@ -191,6 +205,22 @@ defaultEnv = liftIO do
   HT.insert binds "not" $
     Proc \case
       [v] -> Bool . not <$!> expectBool v
+      _ -> throw (EvalError "illegal number of arguments")
+
+  HT.insert binds "string-append" $
+    Proc $ \vs -> Str . Text.concat <$!> traverse expectStr vs
+
+  HT.insert binds "string->number" $
+    Proc \case
+      [v] ->
+        expectStr v >>= \s -> case Text.signed Text.decimal s of
+          Right (n, "") -> pure $! Int n
+          _ -> throw (EvalError "Failed to convert string->number")
+      _ -> throw (EvalError "illegal number of arguments")
+
+  HT.insert binds "number->string" $
+    Proc \case
+      [v] -> expectInt v >>= \n -> pure $! Str (Text.pack (show n))
       _ -> throw (EvalError "illegal number of arguments")
 
   pure $! Env binds Nothing

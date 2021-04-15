@@ -18,6 +18,7 @@ data Exp
 data Atom
   = Bool Bool
   | Int Integer
+  | Str Text
   | Id Id
   deriving (Show)
 
