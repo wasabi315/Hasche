@@ -4,6 +4,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 
 module MiniScheme.Interpreter
@@ -21,6 +22,7 @@ import Data.HashTable.IO qualified as HT
 import Data.Text (Text)
 import Data.Text qualified as Text
 import MiniScheme.AST qualified as AST
+import Prelude hiding (lookup)
 
 interpret :: AST.Exp -> IO (Either EvalError Value)
 interpret e =
@@ -67,10 +69,7 @@ eval (AST.App e es) = do
 evalAtom :: MonadInterp m => AST.Atom -> m (Value' m)
 evalAtom (AST.Int n) = pure $! Int n
 evalAtom (AST.Bool b) = pure $! Bool b
-evalAtom (AST.Id i) =
-  defaultEnv >>= liftIO . flip HT.lookup i >>= \case
-    Just v -> pure v
-    Nothing -> throw (EvalError "unknown id")
+evalAtom (AST.Id i) = defaultEnv >>= flip lookup i
 
 expectInt :: MonadInterp m => Value' m -> m Integer
 expectInt (Int n) = pure n
@@ -84,81 +83,95 @@ expectProc :: MonadInterp m => Value' m -> m ([Value' m] -> m (Value' m))
 expectProc (Proc f) = pure f
 expectProc _ = throw (EvalError "expect procedure")
 
-type Env m = BasicHashTable AST.Id (Value' m)
+data Env m = Env
+  { binds :: BasicHashTable AST.Id (Value' m),
+    outer :: Maybe (Env m)
+  }
+
+lookup :: MonadInterp m => Env m -> AST.Id -> m (Value' m)
+lookup Env {..} i =
+  liftIO (HT.lookup binds i) >>= \case
+    Just v -> pure v
+    Nothing -> case outer of
+      Nothing -> throw (EvalError "Unbound identifier")
+      Just env -> lookup env i
+
+set :: MonadInterp m => Env m -> AST.Id -> Value' m -> m ()
+set Env {..} i v = liftIO $ HT.insert binds i v
 
 defaultEnv :: MonadInterp m => m (Env m)
 defaultEnv = liftIO do
-  env <- HT.new
+  binds <- HT.new
 
-  HT.insert env "number?" $
+  HT.insert binds "number?" $
     Proc \case
       [Bool _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env "boolean?" $
+  HT.insert binds "boolean?" $
     Proc \case
       [Bool _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env "procedure?" $
+  HT.insert binds "procedure?" $
     Proc \case
       [Proc _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env "+" $
+  HT.insert binds "+" $
     Proc (fmap (Int . sum) . traverse expectInt)
 
-  HT.insert env "-" $
+  HT.insert binds "-" $
     Proc $
       traverse expectInt >=> \case
         [] -> throw (EvalError "expect at least one number")
         n : ns -> pure $! Int (n - sum ns)
 
-  HT.insert env "*" $
+  HT.insert binds "*" $
     Proc (fmap (Int . product) . traverse expectInt)
 
-  HT.insert env "/" $
+  HT.insert binds "/" $
     Proc $
       traverse expectInt >=> \case
         [] -> throw (EvalError "expect at least one number")
         n : ns -> pure $! Int (n `div` product ns)
 
-  HT.insert env "=" $
+  HT.insert binds "=" $
     Proc $
       traverse expectInt >=> \case
         [n1, n2] -> pure $! Bool (n1 == n2)
         _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env ">" $
+  HT.insert binds ">" $
     Proc $
       traverse expectInt >=> \case
         [n1, n2] -> pure $! Bool (n1 > n2)
         _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env ">=" $
+  HT.insert binds ">=" $
     Proc $
       traverse expectInt >=> \case
         [n1, n2] -> pure $! Bool (n1 >= n2)
         _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env "<" $
+  HT.insert binds "<" $
     Proc $
       traverse expectInt >=> \case
         [n1, n2] -> pure $! Bool (n1 < n2)
         _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env "<=" $
+  HT.insert binds "<=" $
     Proc $
       traverse expectInt >=> \case
         [n1, n2] -> pure $! Bool (n1 <= n2)
         _ -> throw (EvalError "illegal number of arguments")
 
-  HT.insert env "not" $
+  HT.insert binds "not" $
     Proc \case
       [v] -> Bool . not <$!> expectBool v
       _ -> throw (EvalError "illegal number of arguments")
 
-  pure $! env
+  pure $! Env binds Nothing
