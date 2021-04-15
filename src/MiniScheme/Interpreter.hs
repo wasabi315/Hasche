@@ -96,8 +96,23 @@ lookup Env {..} i =
       Nothing -> throw (EvalError "Unbound identifier")
       Just env -> lookup env i
 
+bind :: MonadInterp m => Env m -> AST.Id -> Value' m -> m ()
+bind Env {..} i v = do
+  declared <- liftIO $ HT.mutate binds i \case
+    Just v' -> (Just v', True)
+    Nothing -> (Just v, False)
+  when declared do
+    throw (EvalError "identifier already declared")
+
 set :: MonadInterp m => Env m -> AST.Id -> Value' m -> m ()
-set Env {..} i v = liftIO $ HT.insert binds i v
+set Env {..} i v = do
+  done <- liftIO $ HT.mutate binds i \case
+    Just _ -> (Just v, True)
+    Nothing -> (Nothing, False)
+  unless done do
+    case outer of
+      Nothing -> throw (EvalError "Unbound identifier")
+      Just env' -> set env' i v
 
 defaultEnv :: MonadInterp m => m (Env m)
 defaultEnv = liftIO do
