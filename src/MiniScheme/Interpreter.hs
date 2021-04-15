@@ -52,22 +52,22 @@ data Value' m
   = Int Integer
   | Bool Bool
   | Str Text
-  | Proc ([Value' m] -> m (Value' m))
+  | Proc (Env m) (Env m -> [Value' m] -> m (Value' m))
 
 instance Show (Value' m) where
   show (Int n) = show n
   show (Bool b) = if b then "#t" else "#f"
   show (Str s) = show s
-  show (Proc _) = "<procedure>"
+  show (Proc _ _) = "<procedure>"
 
 type MonadInterp m = (MonadThrow m, MonadIO m)
 
 eval :: MonadInterp m => AST.Exp -> m (Value' m)
 eval (AST.Atom a) = evalAtom a
 eval (AST.App e es) = do
-  func <- eval e >>= expectProc
+  (env, func) <- eval e >>= expectProc
   args <- traverse eval es
-  func args
+  func env args
 
 evalAtom :: MonadInterp m => AST.Atom -> m (Value' m)
 evalAtom (AST.Int n) = pure $! Int n
@@ -87,8 +87,11 @@ expectStr :: MonadInterp m => Value' m -> m Text
 expectStr (Str s) = pure s
 expectStr _ = throw (EvalError "expect string")
 
-expectProc :: MonadInterp m => Value' m -> m ([Value' m] -> m (Value' m))
-expectProc (Proc f) = pure f
+expectProc ::
+  MonadInterp m =>
+  Value' m ->
+  m (Env m, Env m -> [Value' m] -> m (Value' m))
+expectProc (Proc e f) = pure (e, f)
 expectProc _ = throw (EvalError "expect procedure")
 
 data Env m = Env
@@ -129,89 +132,90 @@ set env i v = set' env
 defaultEnv :: MonadInterp m => m (Env m)
 defaultEnv = liftIO do
   binds <- HT.new
+  phi <- flip Env Nothing <$> HT.new
 
   HT.insert binds "number?" $
-    Proc \case
+    Proc phi \_ args -> case args of
       [Int _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "boolean?" $
-    Proc \case
+    Proc phi \_ args -> case args of
       [Bool _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "string?" $
-    Proc \case
+    Proc phi \_ args -> case args of
       [Str _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "procedure?" $
-    Proc \case
-      [Proc _] -> pure $! Bool True
+    Proc phi \_ args -> case args of
+      [Proc _ _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "+" $
-    Proc (fmap (Int . sum) . traverse expectInt)
+    Proc phi \_ args -> Int . sum <$!> traverse expectInt args
 
   HT.insert binds "-" $
-    Proc $
-      traverse expectInt >=> \case
+    Proc phi \_ args ->
+      traverse expectInt args >>= \case
         [] -> throw (EvalError "expect at least one number")
         n : ns -> pure $! Int (n - sum ns)
 
   HT.insert binds "*" $
-    Proc (fmap (Int . product) . traverse expectInt)
+    Proc phi \_ args -> Int . product <$!> traverse expectInt args
 
   HT.insert binds "/" $
-    Proc $
-      traverse expectInt >=> \case
+    Proc phi \_ args ->
+      traverse expectInt args >>= \case
         [] -> throw (EvalError "expect at least one number")
         n : ns -> pure $! Int (n `div` product ns)
 
   HT.insert binds "=" $
-    Proc $
-      traverse expectInt >=> \case
+    Proc phi \_ args ->
+      traverse expectInt args >>= \case
         [n1, n2] -> pure $! Bool (n1 == n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds ">" $
-    Proc $
-      traverse expectInt >=> \case
+    Proc phi \_ args ->
+      traverse expectInt args >>= \case
         [n1, n2] -> pure $! Bool (n1 > n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds ">=" $
-    Proc $
-      traverse expectInt >=> \case
+    Proc phi \_ args ->
+      traverse expectInt args >>= \case
         [n1, n2] -> pure $! Bool (n1 >= n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "<" $
-    Proc $
-      traverse expectInt >=> \case
+    Proc phi \_ args ->
+      traverse expectInt args >>= \case
         [n1, n2] -> pure $! Bool (n1 < n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "<=" $
-    Proc $
-      traverse expectInt >=> \case
+    Proc phi \_ args ->
+      traverse expectInt args >>= \case
         [n1, n2] -> pure $! Bool (n1 <= n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "not" $
-    Proc \case
+    Proc phi \_ args -> case args of
       [v] -> Bool . not <$!> expectBool v
       _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "string-append" $
-    Proc $ \vs -> Str . Text.concat <$!> traverse expectStr vs
+    Proc phi $ \_ args -> Str . Text.concat <$!> traverse expectStr args
 
   HT.insert binds "string->number" $
-    Proc \case
+    Proc phi \_ args -> case args of
       [v] ->
         expectStr v >>= \s -> case Text.signed Text.decimal s of
           Right (n, "") -> pure $! Int n
@@ -219,7 +223,7 @@ defaultEnv = liftIO do
       _ -> throw (EvalError "illegal number of arguments")
 
   HT.insert binds "number->string" $
-    Proc \case
+    Proc phi \_ args -> case args of
       [v] -> expectInt v >>= \n -> pure $! Str (Text.pack (show n))
       _ -> throw (EvalError "illegal number of arguments")
 
