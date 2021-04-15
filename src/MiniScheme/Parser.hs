@@ -3,21 +3,33 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module MiniScheme.Parser where
+module MiniScheme.Parser
+  ( parseExp,
+    ParseError,
+  )
+where
 
+import Control.Exception.Safe
 import Data.Bifunctor
 import Data.Text (Text)
 import Data.Void
 import MiniScheme.AST qualified as AST
-import Text.Megaparsec
+import Text.Megaparsec hiding (ParseError)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as Lexer
 
+parseExp :: Text -> Either ParseError AST.Exp
+parseExp = first ParseError . parse pExp ""
+
+newtype ParseError = ParseError (ParseErrorBundle Text Void)
+
+instance Show ParseError where
+  show (ParseError err) = errorBundlePretty err
+
+instance Exception ParseError
+
 -- The parser type
 type Parser = Parsec Void Text
-
-parseExp :: Text -> Either String AST.Exp
-parseExp = first errorBundlePretty . parse pExp ""
 
 pExp :: Parser AST.Exp
 pExp =

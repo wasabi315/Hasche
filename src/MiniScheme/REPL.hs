@@ -1,37 +1,39 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-module MiniScheme.Repl where
+module MiniScheme.REPL
+  ( main,
+  )
+where
 
-import Data.Function
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
-import MiniScheme.Interpreter qualified as MS
-import MiniScheme.Parser qualified as MS
+import MiniScheme.Driver qualified as MS
 import System.IO
+
+main :: IO ()
+main = do
+  hSetBuffering stdout NoBuffering
+  Text.putStrLn header
+  repl
 
 repl :: IO ()
 repl = do
-  hSetBuffering stdout NoBuffering
-  Text.putStrLn header
-
-  fix \loop -> do
-    Text.putStr prompt
-    txt <- Text.getLine
-    if
-        | Text.null txt ->
-          loop
-        | txt == ":help" || txt == ":?" ->
-          Text.putStrLn help >> loop
-        | txt == ":quit" || txt == ":q" ->
-          pure ()
-        | otherwise ->
-          case MS.parseExp txt >>= MS.eval of
-            Right e -> print e >> loop
-            Left err -> putStrLn err >> loop
+  Text.putStr prompt
+  txt <- Text.getLine
+  if
+      | Text.null txt -> repl
+      | txt == ":help" || txt == ":?" -> Text.putStrLn help *> repl
+      | txt == ":quit" || txt == ":q" -> pure ()
+      | otherwise ->
+        MS.runInterpreter txt >>= \case
+          Left err -> print err *> repl
+          Right v -> print v *> repl
 
 header :: Text
 header =

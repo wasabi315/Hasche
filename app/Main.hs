@@ -2,7 +2,7 @@
 
 module Main where
 
-import MiniScheme.Repl as MS
+import MiniScheme.REPL qualified as REPL
 
 main :: IO ()
-main = MS.repl
+main = REPL.main

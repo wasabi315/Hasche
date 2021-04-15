@@ -1,7 +1,12 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE StrictData #-}
 
-module MiniScheme.AST where
+module MiniScheme.AST
+  ( Exp (..),
+    Atom (..),
+    Id,
+  )
+where
 
 import Data.Text (Text)
 
