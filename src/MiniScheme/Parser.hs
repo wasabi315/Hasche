@@ -59,12 +59,16 @@ pStr = between (char '"') (char '"') (Text.concat <$!> many pStr')
   where
     pStr' =
       choice
-        [ takeWhile1P Nothing \c -> c /= '\\' && c /= '"',
-          "\n" <$ string "\\n",
-          "\r" <$ string "\\r",
-          "\t" <$ string "\\t",
-          "\"" <$ string "\\\"",
-          "\\" <$ string "\\\\"
+        [ do
+            _ <- char '\\'
+            choice
+              [ "\n" <$ string "n",
+                "\r" <$ string "r",
+                "\t" <$ string "t",
+                "\"" <$ string "\"",
+                "\\" <$ string "\\"
+              ],
+          takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
 pId :: Parser AST.Id
