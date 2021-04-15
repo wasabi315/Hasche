@@ -35,8 +35,8 @@ pExp :: Parser AST.Exp
 pExp =
   choice
     [ AST.Atom <$> pAtom,
-      between (char '(' *> space) (space <* char ')') do
-        f : xs <- (:) <$> pExp <*> many (space1 *> pExp)
+      between (char '(' *> space) (char ')') do
+        f : xs <- pExp `sepEndBy1` space1
         pure $ AST.App f xs
     ]
 
