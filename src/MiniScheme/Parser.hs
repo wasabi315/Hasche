@@ -10,9 +10,11 @@ module MiniScheme.Parser
 where
 
 import Control.Exception.Safe
+import Control.Monad
 import Data.Bifunctor
 import Data.Char
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Void
 import MiniScheme.AST qualified as AST
 import Text.Megaparsec hiding (ParseError)
@@ -53,8 +55,17 @@ pAtom =
     ]
 
 pStr :: Parser Text
-pStr = between (char '"') (char '"') do
-  takeWhile1P Nothing (/= '"')
+pStr = between (char '"') (char '"') (Text.concat <$!> many pStr')
+  where
+    pStr' =
+      choice
+        [ takeWhile1P Nothing \c -> c /= '\\' && c /= '"',
+          "\n" <$ string "\\n",
+          "\r" <$ string "\\r",
+          "\t" <$ string "\\t",
+          "\"" <$ string "\\\"",
+          "\\" <$ string "\\\\"
+        ]
 
 pId :: Parser AST.Id
 pId = do
