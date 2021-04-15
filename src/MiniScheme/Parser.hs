@@ -11,12 +11,14 @@ where
 
 import Control.Exception.Safe
 import Data.Bifunctor
+import Data.Char
 import Data.Text (Text)
 import Data.Void
 import MiniScheme.AST qualified as AST
 import Text.Megaparsec hiding (ParseError)
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as Lexer
+import Text.Megaparsec.Error.Builder
 
 parseExp :: Text -> Either ParseError AST.Exp
 parseExp = first ParseError . parse pExp ""
@@ -24,7 +26,7 @@ parseExp = first ParseError . parse pExp ""
 newtype ParseError = ParseError (ParseErrorBundle Text Void)
 
 instance Show ParseError where
-  show (ParseError err) = errorBundlePretty err
+  show (ParseError e) = errorBundlePretty e
 
 instance Exception ParseError
 
@@ -50,19 +52,11 @@ pAtom =
     ]
 
 pId :: Parser AST.Id
-pId =
-  choice
-    [ "+" <$ char '+',
-      "-" <$ char '-',
-      "*" <$ char '*',
-      "/" <$ char '/',
-      "=" <$ char '=',
-      string "<=",
-      "<" <$ char '<',
-      string ">=",
-      ">" <$ char '>',
-      string "number?",
-      string "boolean?",
-      string "procedure?",
-      string "not"
-    ]
+pId = do
+  o <- getOffset
+  i <- takeWhile1P Nothing \c ->
+    isAlphaNum c
+      || c `elem` ("!$%&*+-./<=>?@^_" :: String)
+  if i == "."
+    then parseError (err o (utok '.'))
+    else pure i
