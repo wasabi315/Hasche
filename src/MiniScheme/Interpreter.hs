@@ -124,7 +124,7 @@ defaultEnv = liftIO do
 
   HT.insert binds "number?" $
     Proc \case
-      [Bool _] -> pure $! Bool True
+      [Int _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
