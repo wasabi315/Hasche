@@ -99,7 +99,11 @@ pAtom =
   choice
     [ AST.Bool True <$ string "#t",
       AST.Bool False <$ string "#f",
-      AST.Int <$> Lexer.decimal,
+      try $
+        AST.Int <$> do
+          f <- option id $ (id <$ char '+') <|> (negate <$ char '-')
+          n <- Lexer.decimal
+          pure $! f n,
       AST.Str <$> pStr,
       AST.Id <$> pId
     ]
