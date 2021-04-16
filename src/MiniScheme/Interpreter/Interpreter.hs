@@ -51,7 +51,7 @@ evalBody env (AST.Body ds es) = do
   pure $! NE.last vs
 
 evalAtom :: MonadInterp m => Env' m -> AST.Atom -> m (Value' m)
-evalAtom _ (AST.Int n) = pure $! Int n
+evalAtom _ (AST.Num n) = pure $! Num n
 evalAtom _ (AST.Bool b) = pure $! Bool b
 evalAtom _ (AST.Str s) = pure $! Str s
 evalAtom env (AST.Id i) = lookup env i

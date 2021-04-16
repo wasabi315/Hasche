@@ -8,7 +8,7 @@
 module MiniScheme.Interpreter.Data
   ( Value' (..),
     expectBool,
-    expectInt,
+    expectNum,
     expectStr,
     expectProc,
     Env',
@@ -34,20 +34,20 @@ import MiniScheme.Interpreter.Monad
 import Prelude hiding (lookup)
 
 data Value' m
-  = Int Integer
+  = Num AST.Number
   | Bool Bool
   | Str Text
   | Proc (Env' m) (Env' m -> [Value' m] -> m (Value' m))
 
 instance Show (Value' m) where
-  show (Int n) = show n
+  show (Num n) = show n
   show (Bool b) = if b then "#t" else "#f"
   show (Str s) = show s
   show (Proc _ _) = "<procedure>"
 
-expectInt :: MonadInterp m => Value' m -> m Integer
-expectInt (Int n) = pure n
-expectInt _ = throw (EvalError "expect number")
+expectNum :: MonadInterp m => Value' m -> m Integer
+expectNum (Num n) = pure n
+expectNum _ = throw (EvalError "expect number")
 
 expectBool :: MonadInterp m => Value' m -> m Bool
 expectBool (Bool b) = pure b

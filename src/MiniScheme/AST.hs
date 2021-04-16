@@ -7,6 +7,7 @@ module MiniScheme.AST
     Exp (..),
     Atom (..),
     Id,
+    Number,
   )
 where
 
@@ -35,9 +36,11 @@ data Body
 
 data Atom
   = Bool Bool
-  | Int Integer
+  | Num Number
   | Str Text
   | Id Id
   deriving (Show)
 
 type Id = Text
+
+type Number = Integer

@@ -26,7 +26,7 @@ builtinEnv = do
 
   bind env "number?" $
     Proc env \_ args -> case args of
-      [Int _] -> pure $! Bool True
+      [Num _] -> pure $! Bool True
       [_] -> pure $! Bool False
       _ -> throw (EvalError "illegal number of arguments")
 
@@ -49,50 +49,50 @@ builtinEnv = do
       _ -> throw (EvalError "illegal number of arguments")
 
   bind env "+" $
-    Proc env \_ args -> Int . sum <$!> traverse expectInt args
+    Proc env \_ args -> Num . sum <$!> traverse expectNum args
 
   bind env "-" $
     Proc env \_ args ->
-      traverse expectInt args >>= \case
+      traverse expectNum args >>= \case
         [] -> throw (EvalError "expect at least one number")
-        n : ns -> pure $! Int (n - sum ns)
+        n : ns -> pure $! Num (n - sum ns)
 
   bind env "*" $
-    Proc env \_ args -> Int . product <$!> traverse expectInt args
+    Proc env \_ args -> Num . product <$!> traverse expectNum args
 
   bind env "/" $
     Proc env \_ args ->
-      traverse expectInt args >>= \case
+      traverse expectNum args >>= \case
         [] -> throw (EvalError "expect at least one number")
-        n : ns -> pure $! Int (n `div` product ns)
+        n : ns -> pure $! Num (n `div` product ns)
 
   bind env "=" $
     Proc env \_ args ->
-      traverse expectInt args >>= \case
+      traverse expectNum args >>= \case
         [n1, n2] -> pure $! Bool (n1 == n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   bind env ">" $
     Proc env \_ args ->
-      traverse expectInt args >>= \case
+      traverse expectNum args >>= \case
         [n1, n2] -> pure $! Bool (n1 > n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   bind env ">=" $
     Proc env \_ args ->
-      traverse expectInt args >>= \case
+      traverse expectNum args >>= \case
         [n1, n2] -> pure $! Bool (n1 >= n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   bind env "<" $
     Proc env \_ args ->
-      traverse expectInt args >>= \case
+      traverse expectNum args >>= \case
         [n1, n2] -> pure $! Bool (n1 < n2)
         _ -> throw (EvalError "illegal number of arguments")
 
   bind env "<=" $
     Proc env \_ args ->
-      traverse expectInt args >>= \case
+      traverse expectNum args >>= \case
         [n1, n2] -> pure $! Bool (n1 <= n2)
         _ -> throw (EvalError "illegal number of arguments")
 
@@ -108,13 +108,13 @@ builtinEnv = do
     Proc env \_ args -> case args of
       [v] ->
         expectStr v >>= \s -> case Text.signed Text.decimal s of
-          Right (n, "") -> pure $! Int n
+          Right (n, "") -> pure $! Num n
           _ -> throw (EvalError "Failed to convert string->number")
       _ -> throw (EvalError "illegal number of arguments")
 
   bind env "number->string" $
     Proc env \_ args -> case args of
-      [v] -> expectInt v >>= \n -> pure $! Str (Text.pack (show n))
+      [v] -> expectNum v >>= \n -> pure $! Str (Text.pack (show n))
       _ -> throw (EvalError "illegal number of arguments")
 
   pure env
