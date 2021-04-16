@@ -17,8 +17,10 @@ where
 import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Foldable
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
+import Data.List.NonEmpty qualified as NE
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read qualified as Text
@@ -67,17 +69,33 @@ type MonadInterp m = (MonadThrow m, MonadIO m)
 
 eval :: MonadInterp m => Env m -> AST.Prog -> m (Value' m)
 eval env (AST.Exp e) = evalExp env e
-eval env (AST.Def (AST.Const i e)) = do
+eval env (AST.Def def) = evalDef env def
+
+evalDef :: MonadInterp m => Env m -> AST.Def -> m (Value' m)
+evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
   pure v
 
 evalExp :: MonadInterp m => Env m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
+evalExp env (AST.Lam args body) =
+  pure $! Proc env \env' vs -> do
+    env'' <- newEnv env'
+    when (length args /= length vs) do
+      throw (EvalError "illegal number of arguments")
+    zipWithM_ (bind env'') args vs
+    evalBody env'' body
 evalExp env (AST.App e es) = do
   (env', func) <- evalExp env e >>= expectProc
   args <- traverse (evalExp env) es
   func env' args
+
+evalBody :: MonadInterp m => Env m -> AST.Body -> m (Value' m)
+evalBody env (AST.Body ds es) = do
+  traverse_ (evalDef env) ds
+  vs <- traverse (evalExp env) es
+  pure $! NE.last vs
 
 evalAtom :: MonadInterp m => Env m -> AST.Atom -> m (Value' m)
 evalAtom _ (AST.Int n) = pure $! Int n
@@ -109,6 +127,11 @@ data Env m = Env
     outer :: Maybe (Env m)
   }
 
+newEnv :: MonadInterp m => Env m -> m (Env m)
+newEnv outer = liftIO do
+  binds <- HT.new
+  pure $! Env binds (Just outer)
+
 lookup :: MonadInterp m => Env m -> AST.Id -> m (Value' m)
 lookup env i = lookup' env
   where
@@ -117,7 +140,7 @@ lookup env i = lookup' env
         Just v -> pure v
         Nothing -> case outer of
           Just env' -> lookup' env'
-          Nothing -> throw (EvalError "Unbound identifier")
+          Nothing -> throw (EvalError $ "Unbound identifier: " <> i)
 
 bind :: MonadInterp m => Env m -> AST.Id -> Value' m -> m ()
 bind Env {..} i v = do

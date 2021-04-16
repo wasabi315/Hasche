@@ -1,15 +1,16 @@
-{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE StrictData #-}
 
 module MiniScheme.AST
   ( Prog (..),
     Def (..),
+    Body (..),
     Exp (..),
     Atom (..),
     Id,
   )
 where
 
+import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 
 data Prog
@@ -23,7 +24,12 @@ data Def
 
 data Exp
   = Atom Atom
+  | Lam [Id] Body
   | App Exp [Exp]
+  deriving (Show)
+
+data Body
+  = Body [Def] (NonEmpty Exp)
   deriving (Show)
 
 data Atom

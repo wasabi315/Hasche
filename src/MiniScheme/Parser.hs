@@ -10,10 +10,11 @@ module MiniScheme.Parser
   )
 where
 
-import Control.Exception.Safe
+import Control.Exception.Safe (Exception)
 import Control.Monad
 import Data.Bifunctor
 import Data.Char
+import Data.List.NonEmpty qualified as NE
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
@@ -42,7 +43,7 @@ type Parser = Parsec Void Text
 pProg :: Parser AST.Prog
 pProg =
   choice
-    [ AST.Def <$> pDefine,
+    [ AST.Def <$> try pDefine,
       AST.Exp <$> pExp
     ]
 
@@ -59,11 +60,24 @@ pDefine =
 pExp :: Parser AST.Exp
 pExp =
   choice
-    [ AST.Atom <$> pAtom,
+    [ (try . parened) do
+        _ <- string "lambda"
+        space1
+        args <- parened (pId `sepEndBy` space1)
+        space1
+        body <- pBody
+        pure $! AST.Lam args body,
+      AST.Atom <$> pAtom,
       parened do
         f : xs <- pExp `sepEndBy1` space1
-        pure $ AST.App f xs
+        pure $! AST.App f xs
     ]
+
+pBody :: Parser AST.Body
+pBody = do
+  ds <- try pDefine `sepEndBy` space1
+  e : es <- pExp `sepEndBy1` space1
+  pure $! AST.Body ds (e NE.:| es)
 
 pAtom :: Parser AST.Atom
 pAtom =
