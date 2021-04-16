@@ -16,9 +16,9 @@ where
 import Control.Exception.Safe
 import Control.Monad
 import Data.Text qualified as Text
-import Data.Text.Read qualified as Text
 import MiniScheme.Interpreter.Data
 import MiniScheme.Interpreter.Monad
+import MiniScheme.Parser (parseNum)
 
 builtinEnv :: MonadInterp m => m (Env' m)
 builtinEnv = do
@@ -107,9 +107,9 @@ builtinEnv = do
   bind env "string->number" $
     Proc env \_ args -> case args of
       [v] ->
-        expectStr v >>= \s -> case Text.signed Text.decimal s of
-          Right (n, "") -> pure $! Num n
-          _ -> throw (EvalError "Failed to convert string->number")
+        expectStr v >>= \s -> case parseNum s of
+          Just n -> pure $! Num n
+          Nothing -> throw (EvalError "Failed to convert string->number")
       _ -> throw (EvalError "illegal number of arguments")
 
   bind env "number->string" $

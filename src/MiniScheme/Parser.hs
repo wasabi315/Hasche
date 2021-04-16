@@ -5,7 +5,7 @@
 
 module MiniScheme.Parser
   ( parseProg,
-    parseExp,
+    parseNum,
     ParseError,
   )
 where
@@ -27,8 +27,9 @@ import Text.Megaparsec.Error.Builder
 parseProg :: Text -> Either ParseError AST.Prog
 parseProg = first ParseError . parse pProg ""
 
-parseExp :: Text -> Either ParseError AST.Exp
-parseExp = first ParseError . parse pExp ""
+-- for string->number
+parseNum :: Text -> Maybe AST.Number
+parseNum = parseMaybe (pNum <* eof)
 
 newtype ParseError = ParseError (ParseErrorBundle Text Void)
 
@@ -99,14 +100,16 @@ pAtom =
   choice
     [ AST.Bool True <$ string "#t",
       AST.Bool False <$ string "#f",
-      try $
-        AST.Num <$> do
-          f <- option id $ (id <$ char '+') <|> (negate <$ char '-')
-          n <- Lexer.decimal
-          pure $! f n,
+      try $ AST.Num <$> pNum,
       AST.Str <$> pStr,
       AST.Id <$> pId
     ]
+
+pNum :: Parser AST.Number
+pNum = do
+  f <- option id $ (id <$ char '+') <|> (negate <$ char '-')
+  n <- Lexer.decimal
+  pure $! f n
 
 pStr :: Parser Text
 pStr = between (char '"') (char '"') (Text.concat <$!> many pStr')
