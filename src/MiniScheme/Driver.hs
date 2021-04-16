@@ -27,6 +27,6 @@ runInterpreter txt =
   case MS.parseProg txt of
     Left err -> pure (Left (ParseError err))
     Right e ->
-      MS.interpret e >>= \case
-        Right v -> pure (Right v)
+      MS.interpret Nothing e >>= \case
+        Right (v, _) -> pure (Right v)
         Left err -> pure (Left (EvalError err))

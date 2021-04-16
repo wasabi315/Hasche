@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -9,6 +10,7 @@
 
 module MiniScheme.Interpreter
   ( interpret,
+    Env,
     Value,
     EvalError,
   )
@@ -21,19 +23,20 @@ import Data.Foldable
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.List.NonEmpty qualified as NE
+import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Read qualified as Text
 import MiniScheme.AST qualified as AST
 import Prelude hiding (lookup)
 
-interpret :: AST.Prog -> IO (Either EvalError Value)
-interpret prog =
+interpret :: Maybe Env -> AST.Prog -> IO (Either EvalError (Value, Env))
+interpret menv prog =
   catch
     do
-      env <- defaultEnv
+      env <- maybe defaultEnv (\(Env e) -> pure e) menv
       v <- runInterpreter (eval env prog)
-      pure . Right $! Value v
+      pure $ Right (Value v, Env env)
     (pure . Left)
 
 newtype EvalError = EvalError Text
@@ -48,16 +51,56 @@ type Interpreter = IO
 runInterpreter :: Interpreter a -> IO a
 runInterpreter = id
 
-data Value = forall m. Value (Value' m)
+newtype Value = Value (Value' Interpreter)
+  deriving newtype (Show)
 
-instance Show Value where
-  show (Value v) = show v
+newtype Env = Env (Env' Interpreter)
+
+data Env' m = Env'
+  { binds :: BasicHashTable AST.Id (Value' m),
+    outer :: Maybe (Env' m)
+  }
+
+newEnv' :: MonadInterp m => Env' m -> m (Env' m)
+newEnv' outer = liftIO do
+  binds <- HT.new
+  pure $! Env' binds (Just outer)
+
+lookup :: MonadInterp m => Env' m -> AST.Id -> m (Value' m)
+lookup env i = lookup' env
+  where
+    lookup' Env' {..} = do
+      liftIO (HT.lookup binds i) >>= \case
+        Just v -> pure v
+        Nothing -> case outer of
+          Just env' -> lookup' env'
+          Nothing -> throw (EvalError $ "Unbound identifier: " <> i)
+
+bind :: MonadInterp m => Env' m -> AST.Id -> Value' m -> m ()
+bind Env' {..} i v = do
+  declared <- liftIO $ HT.mutate binds i \case
+    Just v' -> (Just v', True)
+    Nothing -> (Just v, False)
+  when declared do
+    throw (EvalError "identifier already declared")
+
+set :: MonadInterp m => Env' m -> AST.Id -> Value' m -> m ()
+set env i v = set' env
+  where
+    set' Env' {..} = do
+      done <- liftIO $ HT.mutate binds i \case
+        Just _ -> (Just v, True)
+        Nothing -> (Nothing, False)
+      unless done do
+        case outer of
+          Just env' -> set' env'
+          Nothing -> throw (EvalError "Unbound identifier")
 
 data Value' m
   = Int Integer
   | Bool Bool
   | Str Text
-  | Proc (Env m) (Env m -> [Value' m] -> m (Value' m))
+  | Proc (Env' m) (Env' m -> [Value' m] -> m (Value' m))
 
 instance Show (Value' m) where
   show (Int n) = show n
@@ -67,17 +110,17 @@ instance Show (Value' m) where
 
 type MonadInterp m = (MonadThrow m, MonadIO m)
 
-eval :: MonadInterp m => Env m -> AST.Prog -> m (Value' m)
+eval :: MonadInterp m => Env' m -> AST.Prog -> m (Value' m)
 eval env (AST.Exp e) = evalExp env e
 eval env (AST.Def def) = evalDef env def
 
-evalDef :: MonadInterp m => Env m -> AST.Def -> m (Value' m)
+evalDef :: MonadInterp m => Env' m -> AST.Def -> m (Value' m)
 evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
   pure v
 
-evalExp :: MonadInterp m => Env m -> AST.Exp -> m (Value' m)
+evalExp :: MonadInterp m => Env' m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
 evalExp env (AST.Set i e) = do
   v <- evalExp env e
@@ -85,7 +128,7 @@ evalExp env (AST.Set i e) = do
   pure v
 evalExp env (AST.Lam args body) =
   pure $! Proc env \env' vs -> do
-    env'' <- newEnv env'
+    env'' <- newEnv' env'
     when (length args /= length vs) do
       throw (EvalError "illegal number of arguments")
     zipWithM_ (bind env'') args vs
@@ -95,13 +138,13 @@ evalExp env (AST.App e es) = do
   args <- traverse (evalExp env) es
   func env' args
 
-evalBody :: MonadInterp m => Env m -> AST.Body -> m (Value' m)
+evalBody :: MonadInterp m => Env' m -> AST.Body -> m (Value' m)
 evalBody env (AST.Body ds es) = do
   traverse_ (evalDef env) ds
   vs <- traverse (evalExp env) es
   pure $! NE.last vs
 
-evalAtom :: MonadInterp m => Env m -> AST.Atom -> m (Value' m)
+evalAtom :: MonadInterp m => Env' m -> AST.Atom -> m (Value' m)
 evalAtom _ (AST.Int n) = pure $! Int n
 evalAtom _ (AST.Bool b) = pure $! Bool b
 evalAtom _ (AST.Str s) = pure $! Str s
@@ -122,54 +165,14 @@ expectStr _ = throw (EvalError "expect string")
 expectProc ::
   MonadInterp m =>
   Value' m ->
-  m (Env m, Env m -> [Value' m] -> m (Value' m))
+  m (Env' m, Env' m -> [Value' m] -> m (Value' m))
 expectProc (Proc e f) = pure (e, f)
 expectProc _ = throw (EvalError "expect procedure")
 
-data Env m = Env
-  { binds :: BasicHashTable AST.Id (Value' m),
-    outer :: Maybe (Env m)
-  }
-
-newEnv :: MonadInterp m => Env m -> m (Env m)
-newEnv outer = liftIO do
-  binds <- HT.new
-  pure $! Env binds (Just outer)
-
-lookup :: MonadInterp m => Env m -> AST.Id -> m (Value' m)
-lookup env i = lookup' env
-  where
-    lookup' Env {..} = do
-      liftIO (HT.lookup binds i) >>= \case
-        Just v -> pure v
-        Nothing -> case outer of
-          Just env' -> lookup' env'
-          Nothing -> throw (EvalError $ "Unbound identifier: " <> i)
-
-bind :: MonadInterp m => Env m -> AST.Id -> Value' m -> m ()
-bind Env {..} i v = do
-  declared <- liftIO $ HT.mutate binds i \case
-    Just v' -> (Just v', True)
-    Nothing -> (Just v, False)
-  when declared do
-    throw (EvalError "identifier already declared")
-
-set :: MonadInterp m => Env m -> AST.Id -> Value' m -> m ()
-set env i v = set' env
-  where
-    set' Env {..} = do
-      done <- liftIO $ HT.mutate binds i \case
-        Just _ -> (Just v, True)
-        Nothing -> (Nothing, False)
-      unless done do
-        case outer of
-          Just env' -> set' env'
-          Nothing -> throw (EvalError "Unbound identifier")
-
-defaultEnv :: MonadInterp m => m (Env m)
+defaultEnv :: MonadInterp m => m (Env' m)
 defaultEnv = liftIO do
   binds <- HT.new
-  phi <- flip Env Nothing <$> HT.new
+  phi <- flip Env' Nothing <$> HT.new
 
   HT.insert binds "number?" $
     Proc phi \_ args -> case args of
@@ -264,4 +267,4 @@ defaultEnv = liftIO do
       [v] -> expectInt v >>= \n -> pure $! Str (Text.pack (show n))
       _ -> throw (EvalError "illegal number of arguments")
 
-  pure $! Env binds Nothing
+  pure $! Env' binds Nothing
