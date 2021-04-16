@@ -24,7 +24,7 @@ instance Exception Error
 
 runInterpreter :: Text -> IO (Either Error MS.Value)
 runInterpreter txt =
-  case MS.parseExp txt of
+  case MS.parseProg txt of
     Left err -> pure (Left (ParseError err))
     Right e ->
       MS.interpret e >>= \case

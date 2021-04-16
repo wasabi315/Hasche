@@ -4,7 +4,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module MiniScheme.Parser
-  ( parseExp,
+  ( parseProg,
+    parseExp,
     ParseError,
   )
 where
@@ -22,6 +23,9 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as Lexer
 import Text.Megaparsec.Error.Builder
 
+parseProg :: Text -> Either ParseError AST.Prog
+parseProg = first ParseError . parse pProg ""
+
 parseExp :: Text -> Either ParseError AST.Exp
 parseExp = first ParseError . parse pExp ""
 
@@ -35,11 +39,28 @@ instance Exception ParseError
 -- The parser type
 type Parser = Parsec Void Text
 
+pProg :: Parser AST.Prog
+pProg =
+  choice
+    [ AST.Def <$> pDefine,
+      AST.Exp <$> pExp
+    ]
+
+pDefine :: Parser AST.Def
+pDefine =
+  parened do
+    _ <- string "define"
+    space1
+    i <- pId
+    space1
+    e <- pExp
+    pure $! AST.Const i e
+
 pExp :: Parser AST.Exp
 pExp =
   choice
     [ AST.Atom <$> pAtom,
-      between (char '(' *> space) (char ')') do
+      parened do
         f : xs <- pExp `sepEndBy1` space1
         pure $ AST.App f xs
     ]
@@ -80,3 +101,6 @@ pId = do
   if i == "."
     then parseError (err o (utok '.'))
     else pure i
+
+parened :: Parser a -> Parser a
+parened = between (char '(' *> space) (space <* char ')')

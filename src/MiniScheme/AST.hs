@@ -2,13 +2,24 @@
 {-# LANGUAGE StrictData #-}
 
 module MiniScheme.AST
-  ( Exp (..),
+  ( Prog (..),
+    Def (..),
+    Exp (..),
     Atom (..),
     Id,
   )
 where
 
 import Data.Text (Text)
+
+data Prog
+  = Exp Exp
+  | Def Def
+  deriving (Show)
+
+data Def
+  = Const Id Exp
+  deriving (Show)
 
 data Exp
   = Atom Atom

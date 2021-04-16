@@ -25,10 +25,13 @@ import Data.Text.Read qualified as Text
 import MiniScheme.AST qualified as AST
 import Prelude hiding (lookup)
 
-interpret :: AST.Exp -> IO (Either EvalError Value)
-interpret e =
+interpret :: AST.Prog -> IO (Either EvalError Value)
+interpret prog =
   catch
-    (Right . Value <$> runInterpreter (eval e))
+    do
+      env <- defaultEnv
+      v <- runInterpreter (eval env prog)
+      pure . Right $! Value v
     (pure . Left)
 
 newtype EvalError = EvalError Text
@@ -62,18 +65,25 @@ instance Show (Value' m) where
 
 type MonadInterp m = (MonadThrow m, MonadIO m)
 
-eval :: MonadInterp m => AST.Exp -> m (Value' m)
-eval (AST.Atom a) = evalAtom a
-eval (AST.App e es) = do
-  (env, func) <- eval e >>= expectProc
-  args <- traverse eval es
-  func env args
+eval :: MonadInterp m => Env m -> AST.Prog -> m (Value' m)
+eval env (AST.Exp e) = evalExp env e
+eval env (AST.Def (AST.Const i e)) = do
+  v <- evalExp env e
+  bind env i v
+  pure v
 
-evalAtom :: MonadInterp m => AST.Atom -> m (Value' m)
-evalAtom (AST.Int n) = pure $! Int n
-evalAtom (AST.Bool b) = pure $! Bool b
-evalAtom (AST.Str s) = pure $! Str s
-evalAtom (AST.Id i) = defaultEnv >>= flip lookup i
+evalExp :: MonadInterp m => Env m -> AST.Exp -> m (Value' m)
+evalExp env (AST.Atom a) = evalAtom env a
+evalExp env (AST.App e es) = do
+  (env', func) <- evalExp env e >>= expectProc
+  args <- traverse (evalExp env) es
+  func env' args
+
+evalAtom :: MonadInterp m => Env m -> AST.Atom -> m (Value' m)
+evalAtom _ (AST.Int n) = pure $! Int n
+evalAtom _ (AST.Bool b) = pure $! Bool b
+evalAtom _ (AST.Str s) = pure $! Str s
+evalAtom env (AST.Id i) = lookup env i
 
 expectInt :: MonadInterp m => Value' m -> m Integer
 expectInt (Int n) = pure n
