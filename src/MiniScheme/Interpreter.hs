@@ -61,8 +61,8 @@ data Env' m = Env'
     outer :: Maybe (Env' m)
   }
 
-newEnv' :: MonadInterp m => Env' m -> m (Env' m)
-newEnv' outer = liftIO do
+newEnv :: MonadInterp m => Env' m -> m (Env' m)
+newEnv outer = liftIO do
   binds <- HT.new
   pure $! Env' binds (Just outer)
 
@@ -128,7 +128,7 @@ evalExp env (AST.Set i e) = do
   pure v
 evalExp env (AST.Lam args body) =
   pure $! Proc env \env' vs -> do
-    env'' <- newEnv' env'
+    env'' <- newEnv env'
     when (length args /= length vs) do
       throw (EvalError "illegal number of arguments")
     zipWithM_ (bind env'') args vs
