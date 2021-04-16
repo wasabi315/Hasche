@@ -13,6 +13,10 @@ library
     exposed-modules:  MiniScheme.AST
                     , MiniScheme.Parser
                     , MiniScheme.Interpreter
+                    , MiniScheme.Interpreter.Monad
+                    , MiniScheme.Interpreter.Data
+                    , MiniScheme.Interpreter.Builtins
+                    , MiniScheme.Interpreter.Interpreter
                     , MiniScheme.Driver
                     , MiniScheme.REPL
     build-depends:    base ^>=4.14.1.0
