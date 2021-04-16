@@ -52,10 +52,18 @@ pDefine =
   parened do
     _ <- string "define"
     space1
-    i <- pId
-    space1
-    e <- pExp
-    pure $! AST.Const i e
+    choice
+      [ do
+          i <- pId
+          space1
+          e <- pExp
+          pure $! AST.Const i e,
+        do
+          i : args <- parened (pId `sepEndBy` space1)
+          space1
+          body <- pBody
+          pure $! AST.Const i (AST.Lam args body)
+      ]
 
 pExp :: Parser AST.Exp
 pExp =
