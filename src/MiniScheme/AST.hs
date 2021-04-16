@@ -25,6 +25,7 @@ data Def
 data Exp
   = Atom Atom
   | Lam [Id] Body
+  | Set Id Exp
   | App Exp [Exp]
   deriving (Show)
 

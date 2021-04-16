@@ -79,6 +79,10 @@ evalDef env (AST.Const i e) = do
 
 evalExp :: MonadInterp m => Env m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
+evalExp env (AST.Set i e) = do
+  v <- evalExp env e
+  set env i v
+  pure v
 evalExp env (AST.Lam args body) =
   pure $! Proc env \env' vs -> do
     env'' <- newEnv env'

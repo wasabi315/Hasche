@@ -59,7 +59,7 @@ pDefine =
           e <- pExp
           pure $! AST.Const i e,
         do
-          i : args <- parened (pId `sepEndBy` space1)
+          i : args <- parened (pId `sepEndBy1` space1)
           space1
           body <- pBody
           pure $! AST.Const i (AST.Lam args body)
@@ -75,6 +75,13 @@ pExp =
         space1
         body <- pBody
         pure $! AST.Lam args body,
+      (try . parened) do
+        _ <- string "set!"
+        space1
+        i <- pId
+        space1
+        e <- pExp
+        pure $! AST.Set i e,
       AST.Atom <$> pAtom,
       parened do
         f : xs <- pExp `sepEndBy1` space1
