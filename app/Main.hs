@@ -2,14 +2,12 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Data.Foldable
 import Data.Function
-import Data.Text (Text)
-import Data.Text qualified as Text
+import Data.String
 import Data.Text.IO qualified as Text
 import MiniScheme.Driver as MS
 import Options.Applicative
@@ -19,7 +17,7 @@ import System.IO
 main :: IO ()
 main = do
   execParser parserInfo >>= \case
-    Repl -> repl *> exitSuccess
+    Repl -> repl
     Exec path -> exec path
 
 data Command
@@ -50,27 +48,27 @@ exec path = do
 repl :: IO ()
 repl = do
   hSetBuffering stdout NoBuffering
-  Text.putStrLn headerText
+  putStrLn headerText
 
   interp <- MS.newInterpreter
 
   fix \loop -> do
-    Text.putStr promptText
-    txt <- Text.getLine
+    putStr promptText
+    txt <- getLine
     if
-        | Text.null txt -> loop
-        | txt == ":help" || txt == ":?" -> Text.putStrLn helpText >> loop
+        | txt == "" -> loop
+        | txt == ":help" || txt == ":?" -> putStrLn helpText >> loop
         | txt == ":quit" || txt == ":q" -> pure ()
-        | otherwise -> interp txt >>= either print print >> loop
+        | otherwise -> interp (fromString txt) >>= either print print >> loop
 
   exitSuccess
 
-headerText :: Text
+headerText :: String
 headerText =
   "Welcome to the Mini-Scheme REPL!\n\
   \enter :? for help\n"
 
-helpText :: Text
+helpText :: String
 helpText =
   "Commands available from the prompt:\n\
   \\n\
@@ -78,5 +76,5 @@ helpText =
   \:help, :?       display this help text\n\
   \:quit, :q       exit REPL\n"
 
-promptText :: Text
+promptText :: String
 promptText = "minischeme> "
