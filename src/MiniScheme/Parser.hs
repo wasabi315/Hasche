@@ -24,8 +24,10 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as Lexer
 import Text.Megaparsec.Error.Builder
 
-parseProg :: Text -> Either ParseError AST.Prog
-parseProg = first ParseError . parse pProg ""
+parseProg :: Text -> Either ParseError [AST.Prog]
+parseProg =
+  first ParseError
+    . parse (space *> pProg `sepEndBy1` space <* eof) ""
 
 -- for string->number
 parseNum :: Text -> Maybe AST.Number

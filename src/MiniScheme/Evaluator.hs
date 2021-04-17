@@ -21,7 +21,7 @@ import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Eval
 import MiniScheme.Evaluator.Monad
 
-newEvaluator :: IO (AST.Prog -> IO (Either EvalError Value))
+newEvaluator :: IO ([AST.Prog] -> IO (Either EvalError Value))
 newEvaluator = do
   env <- builtinEnv
 

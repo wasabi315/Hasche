@@ -19,6 +19,7 @@ library
                     , MiniScheme.Evaluator.Eval
                     , MiniScheme.Driver
                     , MiniScheme.REPL
+                    , MiniScheme.Interpreter
     build-depends:    base ^>=4.14.1.0
                     , text
                     , megaparsec
@@ -30,9 +31,9 @@ library
 
 executable minischeme
     main-is:          Main.hs
-    build-depends:
-        base ^>=4.14.1.0,
-        minischeme
+    build-depends:    base ^>=4.14.1.0
+                    , text
+                    , minischeme
 
     hs-source-dirs:   app
     default-language: Haskell2010
