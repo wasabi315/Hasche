@@ -8,7 +8,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 
-module MiniScheme.Interpreter.Builtins
+module MiniScheme.Evaluator.Builtins
   ( builtinEnv,
   )
 where
@@ -16,11 +16,11 @@ where
 import Control.Exception.Safe
 import Control.Monad
 import Data.Text qualified as Text
-import MiniScheme.Interpreter.Data
-import MiniScheme.Interpreter.Monad
+import MiniScheme.Evaluator.Data
+import MiniScheme.Evaluator.Monad
 import MiniScheme.Parser (parseNum)
 
-builtinEnv :: MonadInterp m => m (Env' m)
+builtinEnv :: MonadEval m => m (Env' m)
 builtinEnv = do
   env <- rootEnv
 

@@ -9,7 +9,7 @@ where
 
 import Control.Exception.Safe
 import Data.Text (Text)
-import MiniScheme.Interpreter qualified as MS
+import MiniScheme.Evaluator qualified as MS
 import MiniScheme.Parser qualified as MS
 
 data Error
@@ -27,6 +27,6 @@ runInterpreter txt =
   case MS.parseProg txt of
     Left err -> pure (Left (ParseError err))
     Right e ->
-      MS.interpret Nothing e >>= \case
+      MS.evaluate Nothing e >>= \case
         Right (v, _) -> pure (Right v)
         Left err -> pure (Left (EvalError err))

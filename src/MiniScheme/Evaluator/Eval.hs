@@ -2,7 +2,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module MiniScheme.Interpreter.Interpreter
+module MiniScheme.Evaluator.Eval
   ( eval,
   )
 where
@@ -12,21 +12,21 @@ import Control.Monad
 import Data.Foldable
 import Data.List.NonEmpty qualified as NE
 import MiniScheme.AST qualified as AST
-import MiniScheme.Interpreter.Data
-import MiniScheme.Interpreter.Monad
+import MiniScheme.Evaluator.Data
+import MiniScheme.Evaluator.Monad
 import Prelude hiding (lookup)
 
-eval :: MonadInterp m => Env' m -> AST.Prog -> m (Value' m)
+eval :: MonadEval m => Env' m -> AST.Prog -> m (Value' m)
 eval env (AST.Exp e) = evalExp env e
 eval env (AST.Def def) = evalDef env def
 
-evalDef :: MonadInterp m => Env' m -> AST.Def -> m (Value' m)
+evalDef :: MonadEval m => Env' m -> AST.Def -> m (Value' m)
 evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
   pure v
 
-evalExp :: MonadInterp m => Env' m -> AST.Exp -> m (Value' m)
+evalExp :: MonadEval m => Env' m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
 evalExp env (AST.Set i e) = do
   v <- evalExp env e
@@ -44,13 +44,13 @@ evalExp env (AST.App e es) = do
   args <- traverse (evalExp env) es
   func env' args
 
-evalBody :: MonadInterp m => Env' m -> AST.Body -> m (Value' m)
+evalBody :: MonadEval m => Env' m -> AST.Body -> m (Value' m)
 evalBody env (AST.Body ds es) = do
   traverse_ (evalDef env) ds
   vs <- traverse (evalExp env) es
   pure $! NE.last vs
 
-evalAtom :: MonadInterp m => Env' m -> AST.Atom -> m (Value' m)
+evalAtom :: MonadEval m => Env' m -> AST.Atom -> m (Value' m)
 evalAtom _ (AST.Num n) = pure $! Num n
 evalAtom _ (AST.Bool b) = pure $! Bool b
 evalAtom _ (AST.Str s) = pure $! Str s

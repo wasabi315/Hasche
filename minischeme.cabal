@@ -1,7 +1,7 @@
 cabal-version:      2.4
 name:               minischeme
 version:            0.1.0.0
-synopsis:           A Scheme interpreter written in Haskell
+synopsis:           A Mini-Scheme interpreter written in Haskell
 homepage:           https://github.com/wasabi315/minischeme
 license:            NONE
 author:             wasabi315
@@ -12,11 +12,11 @@ extra-source-files: CHANGELOG.md
 library
     exposed-modules:  MiniScheme.AST
                     , MiniScheme.Parser
-                    , MiniScheme.Interpreter
-                    , MiniScheme.Interpreter.Monad
-                    , MiniScheme.Interpreter.Data
-                    , MiniScheme.Interpreter.Builtins
-                    , MiniScheme.Interpreter.Interpreter
+                    , MiniScheme.Evaluator
+                    , MiniScheme.Evaluator.Monad
+                    , MiniScheme.Evaluator.Data
+                    , MiniScheme.Evaluator.Builtins
+                    , MiniScheme.Evaluator.Eval
                     , MiniScheme.Driver
                     , MiniScheme.REPL
     build-depends:    base ^>=4.14.1.0

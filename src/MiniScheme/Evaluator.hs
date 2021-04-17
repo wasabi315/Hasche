@@ -8,8 +8,8 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 
-module MiniScheme.Interpreter
-  ( interpret,
+module MiniScheme.Evaluator
+  ( evaluate,
     Env,
     Value,
     EvalError,
@@ -19,22 +19,22 @@ where
 import Control.Exception.Safe
 import Data.Maybe
 import MiniScheme.AST qualified as AST
-import MiniScheme.Interpreter.Builtins
-import MiniScheme.Interpreter.Data
-import MiniScheme.Interpreter.Interpreter
-import MiniScheme.Interpreter.Monad
+import MiniScheme.Evaluator.Builtins
+import MiniScheme.Evaluator.Data
+import MiniScheme.Evaluator.Eval
+import MiniScheme.Evaluator.Monad
 import Prelude hiding (lookup)
 
-newtype Value = Value (Value' Interpreter)
+newtype Value = Value (Value' Evaluator)
   deriving newtype (Show)
 
-newtype Env = Env (Env' Interpreter)
+newtype Env = Env (Env' Evaluator)
 
-interpret :: Maybe Env -> AST.Prog -> IO (Either EvalError (Value, Env))
-interpret menv prog =
+evaluate :: Maybe Env -> AST.Prog -> IO (Either EvalError (Value, Env))
+evaluate menv prog =
   catch
     do
       env <- maybe builtinEnv (\(Env e) -> pure e) menv
-      v <- runInterpreter (eval env prog)
+      v <- runEvaluator (eval env prog)
       pure $ Right (Value v, Env env)
     (pure . Left)
