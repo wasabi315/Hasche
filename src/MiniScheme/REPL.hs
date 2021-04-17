@@ -20,20 +20,19 @@ main :: IO ()
 main = do
   hSetBuffering stdout NoBuffering
   Text.putStrLn header
-  repl
 
-repl :: IO ()
-repl = do
-  Text.putStr prompt
-  txt <- Text.getLine
-  if
-      | Text.null txt -> repl
-      | txt == ":help" || txt == ":?" -> Text.putStrLn help *> repl
-      | txt == ":quit" || txt == ":q" -> pure ()
-      | otherwise ->
-        MS.runInterpreter txt >>= \case
-          Left err -> print err *> repl
-          Right v -> print v *> repl
+  interp <- MS.newInterpreter
+
+  let repl = do
+        Text.putStr prompt
+        txt <- Text.getLine
+        if
+            | Text.null txt -> repl
+            | txt == ":help" || txt == ":?" -> Text.putStrLn help >> repl
+            | txt == ":quit" || txt == ":q" -> pure ()
+            | otherwise -> interp txt >>= either print print >> repl
+
+  repl
 
 header :: Text
 header =

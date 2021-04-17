@@ -15,12 +15,13 @@ where
 
 import Control.Exception.Safe
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Text qualified as Text
 import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Monad
 import MiniScheme.Parser (parseNum)
 
-builtinEnv :: MonadEval m => m (Env' m)
+builtinEnv :: (MonadIO m, MonadThrow m, MonadEval n) => m (Env' n)
 builtinEnv = do
   env <- rootEnv
 

@@ -30,7 +30,6 @@ import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as Text
 import MiniScheme.AST qualified as AST
-import MiniScheme.Evaluator.Monad
 import Prelude hiding (lookup)
 
 data Value' m
@@ -45,20 +44,20 @@ instance Show (Value' m) where
   show (Str s) = show s
   show (Proc _ _) = "<procedure>"
 
-expectNum :: MonadEval m => Value' m -> m Integer
+expectNum :: MonadThrow m => Value' m -> m Integer
 expectNum (Num n) = pure n
 expectNum _ = throw (EvalError "expect number")
 
-expectBool :: MonadEval m => Value' m -> m Bool
+expectBool :: MonadThrow m => Value' m -> m Bool
 expectBool (Bool b) = pure b
 expectBool _ = throw (EvalError "expect boolean")
 
-expectStr :: MonadEval m => Value' m -> m Text
+expectStr :: MonadThrow m => Value' m -> m Text
 expectStr (Str s) = pure s
 expectStr _ = throw (EvalError "expect string")
 
 expectProc ::
-  MonadEval m =>
+  MonadThrow m =>
   Value' m ->
   m (Env' m, Env' m -> [Value' m] -> m (Value' m))
 expectProc (Proc e f) = pure (e, f)
@@ -69,13 +68,13 @@ data Env' m = Env'
     parent :: Maybe (Env' m)
   }
 
-rootEnv :: MonadEval m => m (Env' m)
+rootEnv :: MonadIO m => m (Env' n)
 rootEnv = flip Env' Nothing <$!> liftIO HT.new
 
-childEnv :: MonadEval m => Env' m -> m (Env' m)
+childEnv :: MonadIO m => Env' n -> m (Env' n)
 childEnv parent = flip Env' (Just parent) <$!> liftIO HT.new
 
-lookup :: MonadEval m => Env' m -> AST.Id -> m (Value' m)
+lookup :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> m (Value' n)
 lookup env i = lookup' env
   where
     lookup' Env' {..} = do
@@ -85,7 +84,7 @@ lookup env i = lookup' env
           Just env' -> lookup' env'
           Nothing -> throw (EvalError $ "Unbound identifier: " <> i)
 
-bind :: MonadEval m => Env' m -> AST.Id -> Value' m -> m ()
+bind :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> Value' n -> m ()
 bind Env' {..} i v = do
   declared <- liftIO $ HT.mutate binds i \case
     Just v' -> (Just v', True)
@@ -93,7 +92,7 @@ bind Env' {..} i v = do
   when declared do
     throw (EvalError "identifier already declared")
 
-set :: MonadEval m => Env' m -> AST.Id -> Value' m -> m ()
+set :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> Value' n -> m ()
 set env i v = set' env
   where
     set' Env' {..} = do

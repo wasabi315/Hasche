@@ -1,20 +1,22 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 
 module MiniScheme.Driver
-  ( runInterpreter,
+  ( newInterpreter,
     Error,
   )
 where
 
 import Control.Exception.Safe
+import Data.Bifunctor
 import Data.Text (Text)
-import MiniScheme.Evaluator qualified as MS
-import MiniScheme.Parser qualified as MS
+import MiniScheme.Evaluator
+import MiniScheme.Parser
 
 data Error
-  = ParseError MS.ParseError
-  | EvalError MS.EvalError
+  = ParseError ParseError
+  | EvalError EvalError
 
 instance Show Error where
   show (ParseError err) = show err
@@ -22,11 +24,11 @@ instance Show Error where
 
 instance Exception Error
 
-runInterpreter :: Text -> IO (Either Error MS.Value)
-runInterpreter txt =
-  case MS.parseProg txt of
-    Left err -> pure (Left (ParseError err))
-    Right e ->
-      MS.evaluate Nothing e >>= \case
-        Right (v, _) -> pure (Right v)
-        Left err -> pure (Left (EvalError err))
+newInterpreter :: IO (Text -> IO (Either Error Value))
+newInterpreter = do
+  eval <- newEvaluator
+
+  pure \txt ->
+    case parseProg txt of
+      Left err -> pure (Left (ParseError err))
+      Right prog -> first EvalError <$> eval prog
