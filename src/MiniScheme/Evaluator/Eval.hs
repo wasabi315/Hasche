@@ -35,7 +35,7 @@ evalExp env (AST.Atom a) = evalAtom env a
 evalExp env (AST.Set i e) = do
   v <- evalExp env e
   set env i v
-  pure v
+  pure Empty
 evalExp env (AST.If p t e) = do
   evalExp env p >>= \case
     Bool False -> maybe (pure Empty) (evalExp env) e
