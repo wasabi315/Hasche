@@ -85,6 +85,16 @@ pExp =
         space1
         e <- pExp
         pure $! AST.Set i e,
+      (try . parened) do
+        _ <- string "if"
+        space1
+        p <- pExp
+        space1
+        t <- pExp
+        e <- optional do
+          space1
+          pExp
+        pure $! AST.If p t e,
       AST.Atom <$> pAtom,
       parened do
         f : xs <- pExp `sepEndBy1` space1

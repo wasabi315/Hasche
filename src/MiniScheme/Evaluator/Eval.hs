@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module MiniScheme.Evaluator.Eval
@@ -35,6 +36,10 @@ evalExp env (AST.Set i e) = do
   v <- evalExp env e
   set env i v
   pure v
+evalExp env (AST.If p t e) = do
+  evalExp env p >>= \case
+    Bool False -> maybe (pure Empty) (evalExp env) e
+    _ -> evalExp env t
 evalExp env (AST.Lam args body) =
   pure $! Proc env \env' vs -> do
     env'' <- childEnv env'

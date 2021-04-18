@@ -27,6 +27,7 @@ data Exp
   = Atom Atom
   | Lam [Id] Body
   | Set Id Exp
+  | If Exp Exp (Maybe Exp)
   | App Exp [Exp]
   deriving (Show)
 

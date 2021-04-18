@@ -33,12 +33,14 @@ import MiniScheme.AST qualified as AST
 import Prelude hiding (lookup)
 
 data Value' m
-  = Num AST.Number
+  = Empty
+  | Num AST.Number
   | Bool Bool
   | Str Text
   | Proc (Env' m) (Env' m -> [Value' m] -> m (Value' m))
 
 instance Show (Value' m) where
+  show Empty = "()"
   show (Num n) = show n
   show (Bool b) = if b then "#t" else "#f"
   show (Str s) = show s
