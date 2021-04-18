@@ -16,7 +16,9 @@ where
 import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Foldable
 import Data.Text qualified as Text
+import GHC.IO.Unsafe
 import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Monad
 import MiniScheme.Parser (parseNum)
@@ -26,96 +28,88 @@ builtinEnv = do
   env <- rootEnv
 
   bind env "number?" $
-    Proc env \_ args -> case args of
-      [Num _] -> pure $! Bool True
-      [_] -> pure $! Bool False
-      _ -> throw (EvalError "illegal number of arguments")
+    proc1 \case
+      Num _ -> pure $! Bool True
+      _ -> pure $! Bool False
 
   bind env "boolean?" $
-    Proc env \_ args -> case args of
-      [Bool _] -> pure $! Bool True
-      [_] -> pure $! Bool False
-      _ -> throw (EvalError "illegal number of arguments")
+    proc1 \case
+      Bool _ -> pure $! Bool True
+      _ -> pure $! Bool False
 
   bind env "string?" $
-    Proc env \_ args -> case args of
-      [Str _] -> pure $! Bool True
-      [_] -> pure $! Bool False
-      _ -> throw (EvalError "illegal number of arguments")
+    proc1 \case
+      Str _ -> pure $! Bool True
+      _ -> pure $! Bool False
 
   bind env "procedure?" $
-    Proc env \_ args -> case args of
-      [Proc _ _] -> pure $! Bool True
-      [_] -> pure $! Bool False
-      _ -> throw (EvalError "illegal number of arguments")
+    proc1 \case
+      Proc _ _ -> pure $! Bool True
+      _ -> pure $! Bool False
 
-  bind env "+" $
-    Proc env \_ args -> Num . sum <$!> traverse expectNum args
+  bind env "+" (numFold (+) 0)
+  bind env "*" (numFold (*) 1)
 
   bind env "-" $
-    Proc env \_ args ->
-      traverse expectNum args >>= \case
+    builtin $
+      traverse expectNum >=> \case
         [] -> throw (EvalError "expect at least one number")
         n : ns -> pure $! Num (n - sum ns)
 
-  bind env "*" $
-    Proc env \_ args -> Num . product <$!> traverse expectNum args
-
   bind env "/" $
-    Proc env \_ args ->
-      traverse expectNum args >>= \case
+    builtin $
+      traverse expectNum >=> \case
         [] -> throw (EvalError "expect at least one number")
         n : ns -> pure $! Num (n `div` product ns)
 
-  bind env "=" $
-    Proc env \_ args ->
-      traverse expectNum args >>= \case
-        [n1, n2] -> pure $! Bool (n1 == n2)
-        _ -> throw (EvalError "illegal number of arguments")
-
-  bind env ">" $
-    Proc env \_ args ->
-      traverse expectNum args >>= \case
-        [n1, n2] -> pure $! Bool (n1 > n2)
-        _ -> throw (EvalError "illegal number of arguments")
-
-  bind env ">=" $
-    Proc env \_ args ->
-      traverse expectNum args >>= \case
-        [n1, n2] -> pure $! Bool (n1 >= n2)
-        _ -> throw (EvalError "illegal number of arguments")
-
-  bind env "<" $
-    Proc env \_ args ->
-      traverse expectNum args >>= \case
-        [n1, n2] -> pure $! Bool (n1 < n2)
-        _ -> throw (EvalError "illegal number of arguments")
-
-  bind env "<=" $
-    Proc env \_ args ->
-      traverse expectNum args >>= \case
-        [n1, n2] -> pure $! Bool (n1 <= n2)
-        _ -> throw (EvalError "illegal number of arguments")
+  bind env "=" (numBinPred (==))
+  bind env ">" (numBinPred (>))
+  bind env ">=" (numBinPred (>=))
+  bind env "<" (numBinPred (<))
+  bind env "<=" (numBinPred (<=))
 
   bind env "not" $
-    Proc env \_ args -> case args of
-      [v] -> Bool . not <$!> expectBool v
-      _ -> throw (EvalError "illegal number of arguments")
+    proc1 \v -> Bool . not <$!> expectBool v
 
   bind env "string-append" $
-    Proc env $ \_ args -> Str . Text.concat <$!> traverse expectStr args
+    builtin \vs -> Str . Text.concat <$!> traverse expectStr vs
 
   bind env "string->number" $
-    Proc env \_ args -> case args of
-      [v] ->
-        expectStr v >>= \s -> case parseNum s of
-          Just n -> pure $! Num n
-          Nothing -> throw (EvalError "Failed to convert string->number")
-      _ -> throw (EvalError "illegal number of arguments")
+    proc1 $
+      expectStr >=> \s -> case parseNum s of
+        Just n -> pure $! Num n
+        Nothing -> throw (EvalError "Failed to convert string->number")
 
   bind env "number->string" $
-    Proc env \_ args -> case args of
-      [v] -> expectNum v >>= \n -> pure $! Str (Text.pack (show n))
-      _ -> throw (EvalError "illegal number of arguments")
+    proc1 \v -> Str . Text.pack . show <$!> expectNum v
 
   pure env
+
+builtin :: ([Value' m] -> m (Value' m)) -> Value' m
+builtin f = Proc emptyEnv (const f)
+  where
+    emptyEnv = unsafePerformIO rootEnv
+    {-# NOINLINE emptyEnv #-}
+
+proc1 :: MonadEval m => (Value' m -> m (Value' m)) -> Value' m
+proc1 f =
+  builtin \case
+    [v] -> f v
+    _ -> throw (EvalError "illegal number of arguments")
+
+proc2 :: MonadEval m => (Value' m -> Value' m -> m (Value' m)) -> Value' m
+proc2 f =
+  builtin \case
+    [v1, v2] -> f v1 v2
+    _ -> throw (EvalError "illegal number of arguments")
+
+numFold :: MonadEval m => (Number -> Number -> Number) -> Number -> Value' m
+numFold f n =
+  builtin \vs -> Num . foldl' f n <$!> traverse expectNum vs
+
+numBinPred :: MonadEval m => (Number -> Number -> Bool) -> Value' m
+numBinPred f =
+  proc2 \v1 v2 -> do
+    n1 <- expectNum v1
+    n2 <- expectNum v2
+    pure $! Bool (f n1 n2)

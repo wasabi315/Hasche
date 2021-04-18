@@ -7,6 +7,7 @@
 
 module MiniScheme.Evaluator.Data
   ( Value' (..),
+    Number,
     expectBool,
     expectNum,
     expectStr,
@@ -34,10 +35,12 @@ import Prelude hiding (lookup)
 
 data Value' m
   = Empty
-  | Num AST.Number
+  | Num Number
   | Bool Bool
   | Str Text
   | Proc (Env' m) (Env' m -> [Value' m] -> m (Value' m))
+
+type Number = AST.Number
 
 instance Show (Value' m) where
   show Empty = "()"
