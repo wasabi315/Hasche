@@ -15,23 +15,24 @@ import Control.Monad
 import Data.Bifunctor
 import Data.Char
 import Data.List.NonEmpty qualified as NE
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
 import MiniScheme.AST qualified as AST
 import Text.Megaparsec hiding (ParseError)
-import Text.Megaparsec.Char
-import Text.Megaparsec.Char.Lexer qualified as Lexer
+import Text.Megaparsec.Char hiding (space)
+import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Megaparsec.Error.Builder
+import Prelude hiding (exp)
 
 parseProg :: Text -> Either ParseError [AST.Prog]
-parseProg =
-  first ParseError
-    . parse (space *> pProg `sepEndBy1` space <* eof) ""
+parseProg = first ParseError . parse (space *> some prog <* eof) ""
 
 -- for string->number
 parseNum :: Text -> Maybe AST.Number
-parseNum = parseMaybe (pNum <* eof)
+parseNum = parseMaybe (num' <* eof)
 
 newtype ParseError = ParseError (ParseErrorBundle Text Void)
 
@@ -43,90 +44,86 @@ instance Exception ParseError
 -- The parser type
 type Parser = Parsec Void Text
 
-pProg :: Parser AST.Prog
-pProg =
+prog :: Parser AST.Prog
+prog =
   choice
-    [ AST.Def <$> try pDefine,
-      AST.Exp <$> pExp
+    [ AST.Exp <$> atomicExp,
+      parens $ (AST.Def <$> define) <|> (AST.Exp <$> nonAtomicExp)
     ]
 
-pDefine :: Parser AST.Def
-pDefine =
-  parened do
-    _ <- string "define"
-    space1
-    choice
-      [ do
-          i <- pId
-          space1
-          e <- pExp
-          pure $! AST.Const i e,
-        do
-          i : args <- parened (pId `sepEndBy1` space1)
-          space1
-          body <- pBody
-          pure $! AST.Const i (AST.Lam args body)
-      ]
-
-pExp :: Parser AST.Exp
-pExp =
+define :: Parser AST.Def
+define = do
+  _ <- symbol "define"
   choice
-    [ (try . parened) do
-        _ <- string "lambda"
-        space1
-        args <- parened (pId `sepEndBy` space1)
-        space1
-        body <- pBody
-        pure $! AST.Lam args body,
-      (try . parened) do
-        _ <- string "set!"
-        space1
-        i <- pId
-        space1
-        e <- pExp
+    [ do
+        x <- ident
+        e <- exp
+        pure $! AST.Const x e,
+      do
+        f : xs <- parens (some ident)
+        b <- body
+        pure $! AST.Const f (AST.Lam xs b)
+    ]
+
+exp :: Parser AST.Exp
+exp = atomicExp <|> parens nonAtomicExp
+
+atomicExp :: Parser AST.Exp
+atomicExp = AST.Atom <$> atom
+
+nonAtomicExp :: Parser AST.Exp
+nonAtomicExp =
+  choice
+    [ do
+        _ <- symbol "lambda"
+        xs <- parens (many ident)
+        b <- body
+        pure $! AST.Lam xs b,
+      do
+        _ <- symbol "set!"
+        i <- ident
+        e <- exp
         pure $! AST.Set i e,
-      (try . parened) do
-        _ <- string "if"
-        space1
-        p <- pExp
-        space1
-        t <- pExp
-        e <- optional do
-          space1
-          pExp
+      do
+        _ <- symbol "if"
+        p <- exp
+        t <- exp
+        e <- optional exp
         pure $! AST.If p t e,
-      AST.Atom <$> pAtom,
-      parened do
-        f : xs <- pExp `sepEndBy1` space1
+      do
+        f : xs <- some exp
         pure $! AST.App f xs
     ]
 
-pBody :: Parser AST.Body
-pBody = do
-  ds <- try pDefine `sepEndBy` space1
-  e : es <- pExp `sepEndBy1` space1
+body :: Parser AST.Body
+body = do
+  ds <- many (try (parens define))
+  e : es <- some exp
   pure $! AST.Body ds (e NE.:| es)
 
-pAtom :: Parser AST.Atom
-pAtom =
+atom :: Parser AST.Atom
+atom =
   choice
-    [ AST.Bool True <$ string "#t",
-      AST.Bool False <$ string "#f",
-      try $ AST.Num <$> pNum,
-      AST.Str <$> pStr,
-      AST.Id <$> pId
+    [ AST.Bool True <$ symbol "#t",
+      AST.Bool False <$ symbol "#f",
+      try $ AST.Num <$> num,
+      AST.Str <$> str,
+      AST.Id <$> ident
     ]
 
-pNum :: Parser AST.Number
-pNum = do
+num :: Parser AST.Number
+num = lexeme num'
+
+num' :: Parser AST.Number
+num' = do
   f <- option id $ (id <$ char '+') <|> (negate <$ char '-')
-  n <- Lexer.decimal
+  n <- L.decimal
   pure $! f n
 
-pStr :: Parser Text
-pStr = between (char '"') (char '"') (Text.concat <$!> many pStr')
+str :: Parser Text
+str = lexeme $ between (char '"') (char '"') (Text.concat <$!> many str')
   where
-    pStr' =
+    str' =
       choice
         [ do
             _ <- char '\\'
@@ -140,15 +137,37 @@ pStr = between (char '"') (char '"') (Text.concat <$!> many pStr')
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
-pId :: Parser AST.Id
-pId = do
+ident :: Parser AST.Id
+ident = lexeme do
   o <- getOffset
-  i <- takeWhile1P Nothing \c ->
+  x <- takeWhile1P Nothing \c ->
     isAlphaNum c
       || c `elem` ("!$%&*+-./<=>?@^_" :: String)
-  if i == "."
-    then parseError (err o (utok '.'))
-    else pure i
+  if x == "." || x `Set.member` keywords
+    then parseError (err o (utoks x))
+    else pure x
 
-parened :: Parser a -> Parser a
-parened = between (char '(' *> space) (space <* char ')')
+keywords :: Set Text
+keywords =
+  Set.fromList
+    [ "define",
+      "lambda",
+      "if",
+      "set!"
+    ]
+
+parens :: Parser a -> Parser a
+parens = between (symbol "(") (symbol ")")
+
+space :: Parser ()
+space =
+  L.space
+    space1
+    (L.skipLineComment ";")
+    (L.skipBlockCommentNested "#|" "|#")
+
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme space
+
+symbol :: Text -> Parser Text
+symbol = L.symbol space

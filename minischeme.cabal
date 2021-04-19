@@ -21,6 +21,7 @@ library
     build-depends:    base ^>=4.14.1.0
                     , text
                     , megaparsec
+                    , containers
                     , hashtables
                     , safe-exceptions
     hs-source-dirs:   src
