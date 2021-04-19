@@ -29,6 +29,7 @@ data Exp
   | Set Id Exp
   | If Exp Exp (Maybe Exp)
   | Let [(Id, Exp)] Body
+  | LetA [(Id, Exp)] Body
   | App Exp [Exp]
   deriving (Show)
 

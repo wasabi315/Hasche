@@ -48,9 +48,12 @@ evalExp env (AST.Lam args body) =
     zipWithM_ (bind env'') args vs
     evalBody env'' body
 evalExp env (AST.Let binds body) = do
-  binds' <- traverse (traverse (evalExp env)) binds
   env' <- childEnv env
-  traverse_ (uncurry (bind env')) binds'
+  traverse_ (\(x, e) -> evalExp env e >>= bind env' x) binds
+  evalBody env' body
+evalExp env (AST.LetA binds body) = do
+  env' <- childEnv env
+  traverse_ (\(x, e) -> evalExp env' e >>= bind env' x) binds
   evalBody env' body
 evalExp env (AST.App e es) = do
   (env', func) <- evalExp env e >>= expectProc

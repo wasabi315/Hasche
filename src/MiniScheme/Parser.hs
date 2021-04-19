@@ -80,6 +80,11 @@ nonAtomicExp =
         b <- body
         pure $! AST.Lam xs b,
       do
+        _ <- symbol "let*"
+        bs <- parens . many . parens $ (,) <$> ident <*> exp
+        b <- body
+        pure $! AST.LetA bs b,
+      do
         _ <- symbol "let"
         bs <- parens . many . parens $ (,) <$> ident <*> exp
         b <- body
