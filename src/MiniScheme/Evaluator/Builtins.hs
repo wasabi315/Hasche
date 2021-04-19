@@ -87,9 +87,10 @@ builtinEnv = do
 
 builtin :: ([Value' m] -> m (Value' m)) -> Value' m
 builtin f = Proc emptyEnv (const f)
-  where
-    emptyEnv = unsafePerformIO rootEnv
-    {-# NOINLINE emptyEnv #-}
+
+emptyEnv :: Env' n
+emptyEnv = unsafePerformIO rootEnv
+{-# NOINLINE emptyEnv #-}
 
 proc1 :: MonadEval m => (Value' m -> m (Value' m)) -> Value' m
 proc1 f =
