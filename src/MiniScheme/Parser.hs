@@ -80,6 +80,11 @@ nonAtomicExp =
         b <- body
         pure $! AST.Lam xs b,
       do
+        _ <- symbol "let"
+        bs <- parens . many . parens $ (,) <$> ident <*> exp
+        b <- body
+        pure $! AST.Let bs b,
+      do
         _ <- symbol "set!"
         i <- ident
         e <- exp
@@ -104,7 +109,8 @@ body = do
 atom :: Parser AST.Atom
 atom =
   choice
-    [ AST.Bool True <$ symbol "#t",
+    [ AST.Empty <$ symbol "()",
+      AST.Bool True <$ symbol "#t",
       AST.Bool False <$ symbol "#f",
       try $ AST.Num <$> num,
       AST.Str <$> str,
@@ -153,7 +159,10 @@ keywords =
     [ "define",
       "lambda",
       "if",
-      "set!"
+      "set!",
+      "let",
+      "let*",
+      "letrec"
     ]
 
 parens :: Parser a -> Parser a

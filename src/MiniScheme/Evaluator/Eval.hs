@@ -28,7 +28,7 @@ evalDef :: MonadEval m => Env' m -> AST.Def -> m (Value' m)
 evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
-  pure v
+  pure Empty
 
 evalExp :: MonadEval m => Env' m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
@@ -47,6 +47,11 @@ evalExp env (AST.Lam args body) =
       throw (EvalError "illegal number of arguments")
     zipWithM_ (bind env'') args vs
     evalBody env'' body
+evalExp env (AST.Let binds body) = do
+  binds' <- traverse (traverse (evalExp env)) binds
+  env' <- childEnv env
+  traverse_ (uncurry (bind env')) binds'
+  evalBody env' body
 evalExp env (AST.App e es) = do
   (env', func) <- evalExp env e >>= expectProc
   args <- traverse (evalExp env) es
@@ -59,6 +64,7 @@ evalBody env (AST.Body ds es) = do
   pure $! NE.last vs
 
 evalAtom :: MonadEval m => Env' m -> AST.Atom -> m (Value' m)
+evalAtom _ AST.Empty = pure Empty
 evalAtom _ (AST.Num n) = pure $! Num n
 evalAtom _ (AST.Bool b) = pure $! Bool b
 evalAtom _ (AST.Str s) = pure $! Str s

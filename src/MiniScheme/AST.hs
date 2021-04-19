@@ -28,6 +28,7 @@ data Exp
   | Lam [Id] Body
   | Set Id Exp
   | If Exp Exp (Maybe Exp)
+  | Let [(Id, Exp)] Body
   | App Exp [Exp]
   deriving (Show)
 
@@ -36,7 +37,8 @@ data Body
   deriving (Show)
 
 data Atom
-  = Bool Bool
+  = Empty
+  | Bool Bool
   | Num Number
   | Str Text
   | Id Id
