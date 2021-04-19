@@ -59,8 +59,15 @@ evalExp env (AST.Let mname binds body) = do
         evalBody env'' body
   evalBody env' body
 evalExp env (AST.LetA mname binds body) = do
-  env' <- childEnv env
-  traverse_ (\(x, e) -> evalExp env' e >>= bind env' x) binds
+  env' <-
+    foldM
+      ( \env' (x, e) -> do
+          env'' <- childEnv env'
+          evalExp env' e >>= bind env'' x
+          pure env''
+      )
+      env
+      binds
   for_ mname \name ->
     bind env' name $
       Proc env' \env'' vs -> do
