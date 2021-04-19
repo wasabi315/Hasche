@@ -81,14 +81,16 @@ nonAtomicExp =
         pure $! AST.Lam xs b,
       do
         _ <- symbol "let*"
+        n <- optional ident
         bs <- parens . many . parens $ (,) <$> ident <*> exp
         b <- body
-        pure $! AST.LetA bs b,
+        pure $! AST.LetA n bs b,
       do
         _ <- symbol "let"
+        n <- optional ident
         bs <- parens . many . parens $ (,) <$> ident <*> exp
         b <- body
-        pure $! AST.Let bs b,
+        pure $! AST.Let n bs b,
       do
         _ <- symbol "set!"
         i <- ident

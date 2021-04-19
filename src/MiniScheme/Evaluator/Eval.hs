@@ -47,13 +47,27 @@ evalExp env (AST.Lam args body) =
       throw (EvalError "illegal number of arguments")
     zipWithM_ (bind env'') args vs
     evalBody env'' body
-evalExp env (AST.Let binds body) = do
+evalExp env (AST.Let mname binds body) = do
   env' <- childEnv env
   traverse_ (\(x, e) -> evalExp env e >>= bind env' x) binds
+  for_ mname \name ->
+    bind env' name $
+      Proc env' \env'' vs -> do
+        when (length binds /= length vs) do
+          throw (EvalError "illegal number of arguments")
+        zipWithM_ (set env'') (map fst binds) vs
+        evalBody env'' body
   evalBody env' body
-evalExp env (AST.LetA binds body) = do
+evalExp env (AST.LetA mname binds body) = do
   env' <- childEnv env
   traverse_ (\(x, e) -> evalExp env' e >>= bind env' x) binds
+  for_ mname \name ->
+    bind env' name $
+      Proc env' \env'' vs -> do
+        when (length binds /= length vs) do
+          throw (EvalError "illegal number of arguments")
+        zipWithM_ (set env'') (map fst binds) vs
+        evalBody env'' body
   evalBody env' body
 evalExp env (AST.App e es) = do
   (env', func) <- evalExp env e >>= expectProc

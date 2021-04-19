@@ -28,8 +28,8 @@ data Exp
   | Lam [Id] Body
   | Set Id Exp
   | If Exp Exp (Maybe Exp)
-  | Let [(Id, Exp)] Body
-  | LetA [(Id, Exp)] Body
+  | Let (Maybe Id) [(Id, Exp)] Body
+  | LetA (Maybe Id) [(Id, Exp)] Body
   | App Exp [Exp]
   deriving (Show)
 
