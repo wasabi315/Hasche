@@ -69,6 +69,9 @@ evalExp env (AST.LetA mname binds body) = do
         zipWithM_ (set env'') (map fst binds) vs
         evalBody env'' body
   evalBody env' body
+evalExp env (AST.Begin es) = do
+  vs <- traverse (evalExp env) es
+  pure $! maybe Empty NE.last (NE.nonEmpty vs)
 evalExp env (AST.App e es) = do
   (env', func) <- evalExp env e >>= expectProc
   args <- traverse (evalExp env) es

@@ -30,6 +30,7 @@ data Exp
   | If Exp Exp (Maybe Exp)
   | Let (Maybe Id) [(Id, Exp)] Body
   | LetA (Maybe Id) [(Id, Exp)] Body
+  | Begin [Exp]
   | App Exp [Exp]
   deriving (Show)
 

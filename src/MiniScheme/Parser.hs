@@ -103,6 +103,10 @@ nonAtomicExp =
         e <- optional exp
         pure $! AST.If p t e,
       do
+        _ <- symbol "begin"
+        es <- many exp
+        pure $! AST.Begin es,
+      do
         f : xs <- some exp
         pure $! AST.App f xs
     ]
