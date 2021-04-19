@@ -78,7 +78,7 @@ evalExp env (AST.LetA mname binds body) = do
   evalBody env' body
 evalExp env (AST.LetRec mname binds body) = do
   env' <- childEnv env
-  traverse_ (\(x, _) -> bind env' x Empty) binds
+  traverse_ (\(x, _) -> bind env' x Undef) binds
   vs <- traverse (\(_, e) -> evalExp env' e) binds
   zipWithM_ (set env') (map fst binds) vs
   for_ mname \name ->

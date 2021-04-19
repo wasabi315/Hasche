@@ -34,7 +34,8 @@ import MiniScheme.AST qualified as AST
 import Prelude hiding (lookup)
 
 data Value' m
-  = Empty
+  = Undef
+  | Empty
   | Num Number
   | Bool Bool
   | Str Text
@@ -43,6 +44,7 @@ data Value' m
 type Number = AST.Number
 
 instance Show (Value' m) where
+  show Undef = "undefined"
   show Empty = "()"
   show (Num n) = show n
   show (Bool b) = if b then "#t" else "#f"
@@ -51,14 +53,17 @@ instance Show (Value' m) where
 
 expectNum :: MonadThrow m => Value' m -> m Integer
 expectNum (Num n) = pure n
+expectNum Undef = throw (EvalError "undefined value evaluated")
 expectNum _ = throw (EvalError "expect number")
 
 expectBool :: MonadThrow m => Value' m -> m Bool
 expectBool (Bool b) = pure b
+expectBool Undef = throw (EvalError "undefined value evaluated")
 expectBool _ = throw (EvalError "expect boolean")
 
 expectStr :: MonadThrow m => Value' m -> m Text
 expectStr (Str s) = pure s
+expectStr Undef = throw (EvalError "undefined value evaluated")
 expectStr _ = throw (EvalError "expect string")
 
 expectProc ::
@@ -66,6 +71,7 @@ expectProc ::
   Value' m ->
   m (Env' m, Env' m -> [Value' m] -> m (Value' m))
 expectProc (Proc e f) = pure (e, f)
+expectProc Undef = throw (EvalError "undefined value evaluated")
 expectProc _ = throw (EvalError "expect procedure")
 
 data Env' m = Env'
