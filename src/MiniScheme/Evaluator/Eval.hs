@@ -76,6 +76,19 @@ evalExp env (AST.LetA mname binds body) = do
         zipWithM_ (set env'') (map fst binds) vs
         evalBody env'' body
   evalBody env' body
+evalExp env (AST.LetRec mname binds body) = do
+  env' <- childEnv env
+  traverse_ (\(x, _) -> bind env' x Empty) binds
+  vs <- traverse (\(_, e) -> evalExp env' e) binds
+  zipWithM_ (set env') (map fst binds) vs
+  for_ mname \name ->
+    bind env' name $
+      Proc env' \env'' vs -> do
+        when (length binds /= length vs) do
+          throw (EvalError "illegal number of arguments")
+        zipWithM_ (set env'') (map fst binds) vs
+        evalBody env'' body
+  evalBody env' body
 evalExp env (AST.Begin es) = do
   vs <- traverse (evalExp env) es
   pure $! maybe Empty NE.last (NE.nonEmpty vs)

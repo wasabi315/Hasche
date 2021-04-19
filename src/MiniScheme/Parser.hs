@@ -80,17 +80,16 @@ nonAtomicExp =
         b <- body
         pure $! AST.Lam xs b,
       do
-        _ <- symbol "let*"
+        let_ <-
+          choice
+            [ AST.LetA <$ symbol "let*",
+              AST.LetRec <$ symbol "letrec",
+              AST.Let <$ symbol "let"
+            ]
         n <- optional ident
         bs <- parens . many . parens $ (,) <$> ident <*> exp
         b <- body
-        pure $! AST.LetA n bs b,
-      do
-        _ <- symbol "let"
-        n <- optional ident
-        bs <- parens . many . parens $ (,) <$> ident <*> exp
-        b <- body
-        pure $! AST.Let n bs b,
+        pure $! let_ n bs b,
       do
         _ <- symbol "set!"
         i <- ident
