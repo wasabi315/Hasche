@@ -24,10 +24,11 @@ import MiniScheme.Evaluator.Monad
 newEvaluator :: IO ([AST.Prog] -> IO (Either EvalError Value))
 newEvaluator = do
   env <- builtinEnv
+  symtbl <- newSymTable
 
   pure \prog ->
     catch
-      (Right . Value <$> runEvaluator (eval env prog))
+      (Right . Value <$> runEvaluator symtbl (eval env prog))
       (pure . Left)
 
 data Value = forall m. Value (Value' m)

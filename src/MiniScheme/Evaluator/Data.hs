@@ -11,6 +11,7 @@ module MiniScheme.Evaluator.Data
     expectBool,
     expectNum,
     expectStr,
+    expectSym,
     expectProc,
     Env',
     rootEnv,
@@ -18,6 +19,11 @@ module MiniScheme.Evaluator.Data
     lookup,
     bind,
     set,
+    Symbol,
+    SymTable,
+    newSymTable,
+    strToSym,
+    symToStr,
     EvalError (..),
   )
 where
@@ -27,6 +33,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
+import Data.IORef
 import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -39,6 +46,7 @@ data Value' m
   | Num Number
   | Bool Bool
   | Str Text
+  | Sym Symbol
   | Proc (Env' m) (Env' m -> [Value' m] -> m (Value' m))
 
 type Number = AST.Number
@@ -49,6 +57,7 @@ instance Show (Value' m) where
   show (Num n) = show n
   show (Bool b) = if b then "#t" else "#f"
   show (Str s) = show s
+  show (Sym s) = show s
   show (Proc _ _) = "<procedure>"
 
 expectNum :: MonadThrow m => Value' m -> m Integer
@@ -65,6 +74,11 @@ expectStr :: MonadThrow m => Value' m -> m Text
 expectStr (Str s) = pure s
 expectStr Undef = throw (EvalError "undefined value evaluated")
 expectStr _ = throw (EvalError "expect string")
+
+expectSym :: MonadThrow m => Value' m -> m Symbol
+expectSym (Sym s) = pure s
+expectSym Undef = throw (EvalError "undefined value evaluated")
+expectSym _ = throw (EvalError "expect string")
 
 expectProc ::
   MonadThrow m =>
@@ -114,6 +128,30 @@ set env i v = set' env
         case parent of
           Just env' -> set' env'
           Nothing -> throw (EvalError "Unbound identifier")
+
+data Symbol = Symbol Text (IORef ())
+
+instance Eq Symbol where
+  Symbol _ p1 == Symbol _ p2 = p1 == p2
+
+instance Show Symbol where
+  show (Symbol name _) = Text.unpack name
+
+newtype SymTable = SymTable (BasicHashTable Text Symbol)
+
+newSymTable :: MonadIO m => m SymTable
+newSymTable = SymTable <$> liftIO HT.new
+
+symToStr :: Symbol -> Text
+symToStr (Symbol name _) = name
+
+strToSym :: MonadIO m => SymTable -> Text -> m Symbol
+strToSym (SymTable tbl) t = liftIO do
+  HT.mutateIO tbl t \case
+    Nothing -> do
+      sym <- Symbol t <$!> newIORef ()
+      pure (Just sym, sym)
+    Just sym -> pure (Just sym, sym)
 
 newtype EvalError = EvalError Text
 

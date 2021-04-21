@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -12,6 +13,7 @@ import Control.Exception.Safe
 import Control.Monad
 import Data.Foldable
 import Data.List.NonEmpty qualified as NE
+import Data.Text (Text)
 import MiniScheme.AST qualified as AST
 import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Monad
@@ -28,7 +30,7 @@ evalDef :: MonadEval m => Env' m -> AST.Def -> m (Value' m)
 evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
-  pure Undef
+  newSym i
 
 evalExp :: MonadEval m => Env' m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
@@ -109,3 +111,8 @@ evalAtom _ (AST.Num n) = pure $! Num n
 evalAtom _ (AST.Bool b) = pure $! Bool b
 evalAtom _ (AST.Str s) = pure $! Str s
 evalAtom env (AST.Id i) = lookup env i
+
+newSym :: MonadEval m => Text -> m (Value' m)
+newSym s = do
+  symtbl <- ask
+  Sym <$!> strToSym symtbl s

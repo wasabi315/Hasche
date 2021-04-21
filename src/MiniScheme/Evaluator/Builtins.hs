@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
@@ -40,6 +41,11 @@ builtinEnv = do
   bind env "string?" $
     proc1 \case
       Str _ -> pure $! Bool True
+      _ -> pure $! Bool False
+
+  bind env "symbol?" $
+    proc1 \case
+      Sym _ -> pure $! Bool True
       _ -> pure $! Bool False
 
   bind env "procedure?" $
@@ -82,6 +88,15 @@ builtinEnv = do
 
   bind env "number->string" $
     proc1 \v -> Str . Text.pack . show <$!> expectNum v
+
+  bind env "string->symbol" $
+    proc1 $
+      expectStr >=> \s -> do
+        symtbl <- ask
+        Sym <$!> strToSym symtbl s
+
+  bind env "symbol->string" $
+    proc1 \v -> Str . symToStr <$!> expectSym v
 
   pure env
 
