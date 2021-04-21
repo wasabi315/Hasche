@@ -28,17 +28,17 @@ evalDef :: MonadEval m => Env' m -> AST.Def -> m (Value' m)
 evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
-  pure Empty
+  pure Undef
 
 evalExp :: MonadEval m => Env' m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
 evalExp env (AST.Set i e) = do
   v <- evalExp env e
   set env i v
-  pure Empty
+  pure v
 evalExp env (AST.If p t e) = do
   evalExp env p >>= \case
-    Bool False -> maybe (pure Empty) (evalExp env) e
+    Bool False -> maybe (pure Undef) (evalExp env) e
     _ -> evalExp env t
 evalExp env (AST.Lam args body) =
   pure $! Proc env \env' vs -> do
@@ -83,10 +83,10 @@ evalExp env (AST.LetRec mname binds body) = do
   zipWithM_ (set env') (map fst binds) vs
   for_ mname \name ->
     bind env' name $
-      Proc env' \env'' vs -> do
+      Proc env' \env'' vs' -> do
         when (length binds /= length vs) do
           throw (EvalError "illegal number of arguments")
-        zipWithM_ (set env'') (map fst binds) vs
+        zipWithM_ (set env'') (map fst binds) vs'
         evalBody env'' body
   evalBody env' body
 evalExp env (AST.Begin es) = do

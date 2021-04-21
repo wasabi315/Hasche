@@ -44,7 +44,7 @@ data Value' m
 type Number = AST.Number
 
 instance Show (Value' m) where
-  show Undef = "undefined"
+  show Undef = "#<undef>"
   show Empty = "()"
   show (Num n) = show n
   show (Bool b) = if b then "#t" else "#f"
