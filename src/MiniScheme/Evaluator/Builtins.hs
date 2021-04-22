@@ -75,7 +75,9 @@ builtinEnv = do
   bind env "<=" (numBinPred (<=))
 
   bind env "not" $
-    proc1 \v -> Bool . not <$!> expectBool v
+    proc1 \case
+      Bool False -> pure $! Bool True
+      _ -> pure $! Bool False
 
   bind env "string-append" $
     builtin \vs -> Str . Text.concat <$!> traverse expectStr vs
