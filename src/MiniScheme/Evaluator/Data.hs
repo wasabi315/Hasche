@@ -87,20 +87,26 @@ data ValueKind m
 type Number = AST.Number
 
 prettyValue :: Value' m -> IO String
-prettyValue = fmap ($ "") . prettyValue'
+prettyValue = fmap ($ "") . prettyValue' . val
   where
-    prettyValue' v = case val v of
+    prettyValue' = \case
       Undef -> pure $ showString "#<undef>"
       Empty -> pure $ showString "()"
-      Pair r1 r2 -> do
-        s1 <- readIORef r1 >>= prettyValue'
-        s2 <- readIORef r2 >>= prettyValue'
-        pure . showParen True $ s1 . showString " . " . s2
+      pair@(Pair _ _) -> showParen True <$> prettyPairs pair
       Num n -> pure $ shows n
       Bool b -> pure . showString $ if b then "#t" else "#f"
       Str s -> pure $ shows s
       Sym s -> pure $ shows s
       Proc _ _ -> pure $ showString "<procedure>"
+
+    prettyPairs = \case
+      Pair r1 r2 -> do
+        s1 <- readIORef r1 >>= prettyValue' . val
+        readIORef r2 >>= \v -> case val v of
+          Empty -> pure s1
+          pair@(Pair _ _) -> (\s2 -> s1 . showChar ' ' . s2) <$> prettyPairs pair
+          v' -> (\s2 -> s1 . showString " . " . s2) <$> prettyValue' v'
+      v -> prettyValue' v
 
 expectNum :: MonadThrow m => Value' m -> m Integer
 expectNum v = case val v of
