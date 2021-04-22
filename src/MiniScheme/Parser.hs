@@ -164,13 +164,18 @@ sexp =
       do
         _ <- char '\''
         e <- sexp
-        pure $!
-          AST.SAtom (AST.Id "quote")
-            `AST.SCons` e
-            `AST.SCons` AST.SAtom AST.Empty,
-      parens do
-        es <- some sexp
-        pure $! foldr AST.SCons (AST.SAtom AST.Empty) es
+        pure
+          $! AST.SAtom (AST.Id "quote")
+          `AST.SCons` e
+          `AST.SCons` AST.SAtom AST.Empty,
+      parens . choice $
+        [ do
+            (es, e) <- try (improperList sexp)
+            pure $! foldr AST.SCons e es,
+          do
+            es <- some sexp
+            pure $! foldr AST.SCons (AST.SAtom AST.Empty) es
+        ]
     ]
 
 satom :: Parser AST.Atom
