@@ -32,9 +32,12 @@ evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
   pure empty
+evalDef env (AST.Proc f xs b) =
+  evalDef env (AST.Const f (AST.Lam xs b))
 
 evalExp :: MonadEval m => Env m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
+evalExp _ (AST.Quote e) = evalSExp e
 evalExp env (AST.Set i e) = do
   v <- evalExp env e
   set env i v
@@ -118,3 +121,17 @@ evalAtom _ (AST.Num n) = alloc (Num n)
 evalAtom _ (AST.Bool b) = alloc (Bool b)
 evalAtom _ (AST.Str s) = alloc (Str s)
 evalAtom env (AST.Id i) = lookup env i >>= liftIO . readIORef
+
+evalSExp :: MonadEval m => AST.SExp -> m (Value' m)
+evalSExp (AST.SAtom AST.Empty) = pure empty
+evalSExp (AST.SAtom (AST.Num n)) = alloc (Num n)
+evalSExp (AST.SAtom (AST.Bool b)) = alloc (Bool b)
+evalSExp (AST.SAtom (AST.Str s)) = alloc (Str s)
+evalSExp (AST.SAtom (AST.Id i)) = ask >>= flip strToSym i
+evalSExp (AST.SList es) = foldrM (\e v -> evalSExp e >>= flip cons v) empty es
+
+cons :: MonadEval m => Value' m -> Value' m -> m (Value' m)
+cons v1 v2 = do
+  r1 <- liftIO (newIORef v1)
+  r2 <- liftIO (newIORef v2)
+  alloc $ Pair r1 r2

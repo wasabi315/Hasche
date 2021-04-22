@@ -47,7 +47,7 @@ type Parser = Parsec Void Text
 prog :: Parser AST.Prog
 prog =
   choice
-    [ AST.Exp <$> atomicExp,
+    [ AST.Exp <$> (atomicExp <|> quotedExp),
       parens $ (AST.Def <$> define) <|> (AST.Exp <$> nonAtomicExp)
     ]
 
@@ -62,19 +62,31 @@ define = do
       do
         f : xs <- parens (some ident)
         b <- body
-        pure $! AST.Const f (AST.Lam xs b)
+        pure $! AST.Proc f xs b
     ]
 
 exp :: Parser AST.Exp
-exp = atomicExp <|> parens nonAtomicExp
+exp =
+  choice
+    [ atomicExp,
+      quotedExp,
+      parens nonAtomicExp
+    ]
 
 atomicExp :: Parser AST.Exp
 atomicExp = AST.Atom <$> atom
+
+quotedExp :: Parser AST.Exp
+quotedExp = AST.Quote <$> (char '\'' *> sexp)
 
 nonAtomicExp :: Parser AST.Exp
 nonAtomicExp =
   choice
     [ do
+        _ <- symbol "quote"
+        e <- sexp
+        pure $! AST.Quote e,
+      do
         _ <- symbol "lambda"
         xs <- parens (many ident)
         b <- body
@@ -115,6 +127,40 @@ body = do
   ds <- many (try (parens define))
   e : es <- some exp
   pure $! AST.Body ds (e NE.:| es)
+
+sexp :: Parser AST.SExp
+sexp =
+  choice
+    [ AST.SAtom <$> satom,
+      do
+        _ <- char '\''
+        e <- sexp
+        pure $! AST.SList (AST.SAtom (AST.Id "quote") NE.:| [e]),
+      parens do
+        e : es <- some sexp
+        pure $! AST.SList (e NE.:| es)
+    ]
+
+satom :: Parser AST.Atom
+satom =
+  choice
+    [ AST.Empty <$ symbol "()",
+      AST.Bool True <$ symbol "#t",
+      AST.Bool False <$ symbol "#f",
+      try $ AST.Num <$> num,
+      AST.Str <$> str,
+      AST.Id <$> sident
+    ]
+
+sident :: Parser AST.Id
+sident = lexeme do
+  o <- getOffset
+  x <- takeWhile1P Nothing \c ->
+    isAlphaNum c
+      || c `elem` ("!$%&*+-./<=>?@^_" :: String)
+  if x == "."
+    then parseError (err o (utoks x))
+    else pure x
 
 atom :: Parser AST.Atom
 atom =
@@ -167,6 +213,7 @@ keywords :: Set Text
 keywords =
   Set.fromList
     [ "define",
+      "quote",
       "lambda",
       "if",
       "set!",

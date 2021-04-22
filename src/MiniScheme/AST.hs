@@ -1,3 +1,5 @@
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
 module MiniScheme.AST
@@ -5,6 +7,7 @@ module MiniScheme.AST
     Def (..),
     Body (..),
     Exp (..),
+    SExp (..),
     Atom (..),
     Id,
     Number,
@@ -21,10 +24,12 @@ data Prog
 
 data Def
   = Const Id Exp
+  | Proc Id [Id] Body
   deriving (Show)
 
 data Exp
   = Atom Atom
+  | Quote SExp
   | Lam [Id] Body
   | Set Id Exp
   | If Exp Exp (Maybe Exp)
@@ -33,6 +38,11 @@ data Exp
   | LetRec (Maybe Id) [(Id, Exp)] Body
   | Begin [Exp]
   | App Exp [Exp]
+  deriving (Show)
+
+data SExp
+  = SAtom Atom
+  | SList (NonEmpty SExp)
   deriving (Show)
 
 data Body
