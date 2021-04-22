@@ -11,7 +11,9 @@ where
 
 import Control.Exception.Safe
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Foldable
+import Data.IORef
 import Data.List.NonEmpty qualified as NE
 import Data.Text (Text)
 import MiniScheme.AST qualified as AST
@@ -110,7 +112,7 @@ evalAtom _ AST.Empty = pure Empty
 evalAtom _ (AST.Num n) = pure $! Num n
 evalAtom _ (AST.Bool b) = pure $! Bool b
 evalAtom _ (AST.Str s) = pure $! Str s
-evalAtom env (AST.Id i) = lookup env i
+evalAtom env (AST.Id i) = lookup env i >>= liftIO . readIORef
 
 newSym :: MonadEval m => Text -> m (Value' m)
 newSym s = do

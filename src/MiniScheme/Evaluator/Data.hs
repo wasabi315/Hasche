@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE TupleSections #-}
 
 module MiniScheme.Evaluator.Data
   ( Value' (..),
@@ -89,7 +90,7 @@ expectProc Undef = throw (EvalError "undefined value evaluated")
 expectProc _ = throw (EvalError "expect procedure")
 
 data Env' m = Env'
-  { binds :: BasicHashTable AST.Id (Value' m),
+  { binds :: BasicHashTable AST.Id (IORef (Value' m)),
     parent :: Maybe (Env' m)
   }
 
@@ -99,7 +100,7 @@ rootEnv = flip Env' Nothing <$!> liftIO HT.new
 childEnv :: MonadIO m => Env' n -> m (Env' n)
 childEnv parent = flip Env' (Just parent) <$!> liftIO HT.new
 
-lookup :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> m (Value' n)
+lookup :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> m (IORef (Value' n))
 lookup env i = lookup' env
   where
     lookup' Env' {..} = do
@@ -111,23 +112,16 @@ lookup env i = lookup' env
 
 bind :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> Value' n -> m ()
 bind Env' {..} i v = do
-  declared <- liftIO $ HT.mutate binds i \case
-    Just v' -> (Just v', True)
-    Nothing -> (Just v, False)
+  declared <- liftIO $ HT.mutateIO binds i \case
+    Just v' -> pure (Just v', True)
+    Nothing -> (,False) . Just <$> newIORef v
   when declared do
     throw (EvalError "identifier already declared")
 
 set :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> Value' n -> m ()
-set env i v = set' env
-  where
-    set' Env' {..} = do
-      done <- liftIO $ HT.mutate binds i \case
-        Just _ -> (Just v, True)
-        Nothing -> (Nothing, False)
-      unless done do
-        case parent of
-          Just env' -> set' env'
-          Nothing -> throw (EvalError "Unbound identifier")
+set e i v = do
+  ref <- lookup e i
+  liftIO $ modifyIORef' ref (const v)
 
 data Symbol = Symbol Text (IORef ())
 
