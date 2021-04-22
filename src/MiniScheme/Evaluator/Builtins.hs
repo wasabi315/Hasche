@@ -28,85 +28,87 @@ builtinEnv :: (MonadIO m, MonadThrow m, MonadEval n) => m (Env n)
 builtinEnv = do
   env <- rootEnv
 
-  bind env "number?"
-    =<< proc1 \v -> case val v of
-      Num _ -> pure true
-      _ -> pure false
-
-  bind env "boolean?"
-    =<< proc1 \v -> case val v of
-      Bool _ -> pure true
-      _ -> pure false
-
-  bind env "string?"
-    =<< proc1 \v -> case val v of
-      Str _ -> pure true
-      _ -> pure false
-
-  bind env "symbol?"
-    =<< proc1 \v -> case val v of
-      Sym _ -> pure true
-      _ -> pure false
-
-  bind env "procedure?"
-    =<< proc1 \v -> case val v of
-      Proc _ _ -> pure true
-      _ -> pure false
-
-  bind env "+" =<< numFold (+) 0
-  bind env "*" =<< numFold (*) 1
-
-  bind env "-"
-    =<< builtin
-      ( traverse expectNum >=> \case
-          [] -> throw (EvalError "expect at least one number")
-          n : ns -> alloc $ Num (n - sum ns)
+  traverse_
+    (\(i, v) -> bind env i =<< v)
+    [ ( "number?",
+        proc1 \v -> case val v of
+          Num _ -> pure true
+          _ -> pure false
+      ),
+      ( "boolean?",
+        proc1 \v -> case val v of
+          Bool _ -> pure true
+          _ -> pure false
+      ),
+      ( "string?",
+        proc1 \v -> case val v of
+          Str _ -> pure true
+          _ -> pure false
+      ),
+      ( "symbol?",
+        proc1 \v -> case val v of
+          Sym _ -> pure true
+          _ -> pure false
+      ),
+      ( "procedure?",
+        proc1 \v -> case val v of
+          Proc _ _ -> pure true
+          _ -> pure false
+      ),
+      ("+", numFold (+) 0),
+      ("*", numFold (*) 1),
+      ( "-",
+        builtin
+          ( traverse expectNum >=> \case
+              [] -> throw (EvalError "expect at least one number")
+              n : ns -> alloc $ Num (n - sum ns)
+          )
+      ),
+      ( "/",
+        builtin
+          ( traverse expectNum >=> \case
+              [] -> throw (EvalError "expect at least one number")
+              n : ns -> alloc $ Num (n `div` product ns)
+          )
+      ),
+      ("=", numBinPred (==)),
+      (">", numBinPred (>)),
+      (">=", numBinPred (>=)),
+      ("<", numBinPred (<)),
+      ("<=", numBinPred (<=)),
+      ( "not",
+        proc1 \v -> case val v of
+          Bool False -> pure true
+          _ -> pure false
+      ),
+      ( "string-append",
+        builtin (traverse expectStr >=> alloc . Str . Text.concat)
+      ),
+      ( "string->number",
+        proc1
+          ( expectStr >=> \s -> case parseNum s of
+              Just n -> alloc $ Num n
+              Nothing -> throw (EvalError "Failed to convert string->number")
+          )
+      ),
+      ( "number->string",
+        proc1 (expectNum >=> alloc . Str . Text.pack . show)
+      ),
+      ( "string->symbol",
+        proc1
+          ( expectStr >=> \s -> do
+              symtbl <- ask
+              strToSym symtbl s
+          )
+      ),
+      ( "symbol->string",
+        proc1 (expectSym >=> alloc . Str . symToStr)
+      ),
+      ( "eq?",
+        proc2 \v1 v2 ->
+          pure $! if loc v1 == loc v2 then true else false
       )
-
-  bind env "/"
-    =<< builtin
-      ( traverse expectNum >=> \case
-          [] -> throw (EvalError "expect at least one number")
-          n : ns -> alloc $ Num (n `div` product ns)
-      )
-
-  bind env "=" =<< numBinPred (==)
-  bind env ">" =<< numBinPred (>)
-  bind env ">=" =<< numBinPred (>=)
-  bind env "<" =<< numBinPred (<)
-  bind env "<=" =<< numBinPred (<=)
-
-  bind env "not"
-    =<< proc1 \v -> case val v of
-      Bool False -> pure true
-      _ -> pure false
-
-  bind env "string-append"
-    =<< builtin (traverse expectStr >=> alloc . Str . Text.concat)
-
-  bind env "string->number"
-    =<< proc1
-      ( expectStr >=> \s -> case parseNum s of
-          Just n -> alloc $ Num n
-          Nothing -> throw (EvalError "Failed to convert string->number")
-      )
-
-  bind env "number->string"
-    =<< proc1 (expectNum >=> alloc . Str . Text.pack . show)
-
-  bind env "string->symbol"
-    =<< proc1
-      ( expectStr >=> \s -> do
-          symtbl <- ask
-          strToSym symtbl s
-      )
-
-  bind env "symbol->string"
-    =<< proc1 (expectSym >=> alloc . Str . symToStr)
-
-  bind env "eq?"
-    =<< proc2 \v1 v2 ->
-      pure $! if loc v1 == loc v2 then true else false
+    ]
 
   pure env
 
