@@ -25,7 +25,6 @@ data Prog
 
 data Def
   = Const Id Exp
-  | Proc Id Args Body
   deriving (Show)
 
 data Exp
@@ -49,8 +48,10 @@ data Args
 
 data SExp
   = SAtom Atom
-  | SList (NonEmpty SExp)
+  | SCons SExp SExp
   deriving (Show)
+
+infixr 5 `SCons`
 
 data Body
   = Body [Def] (NonEmpty Exp)

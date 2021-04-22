@@ -63,7 +63,7 @@ define = do
       do
         (f, xs) <- procNameAndArgs
         b <- body
-        pure $! AST.Proc f xs b
+        pure $! AST.Const f (AST.Lam xs b)
     ]
 
 procNameAndArgs :: Parser (AST.Id, AST.Args)
@@ -164,10 +164,13 @@ sexp =
       do
         _ <- char '\''
         e <- sexp
-        pure $! AST.SList (AST.SAtom (AST.Id "quote") NE.:| [e]),
+        pure $!
+          AST.SAtom (AST.Id "quote")
+            `AST.SCons` e
+            `AST.SCons` AST.SAtom AST.Empty,
       parens do
-        e : es <- some sexp
-        pure $! AST.SList (e NE.:| es)
+        es <- some sexp
+        pure $! foldr AST.SCons (AST.SAtom AST.Empty) es
     ]
 
 satom :: Parser AST.Atom

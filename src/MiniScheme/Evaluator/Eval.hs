@@ -33,8 +33,6 @@ evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
   pure empty
-evalDef env (AST.Proc f xs b) =
-  evalDef env (AST.Const f (AST.Lam xs b))
 
 evalExp :: MonadEval m => Env m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
@@ -142,7 +140,10 @@ evalSExp (AST.SAtom (AST.Num n)) = alloc (Num n)
 evalSExp (AST.SAtom (AST.Bool b)) = alloc (Bool b)
 evalSExp (AST.SAtom (AST.Str s)) = alloc (Str s)
 evalSExp (AST.SAtom (AST.Id i)) = ask >>= flip strToSym i
-evalSExp (AST.SList es) = foldrM (\e v -> evalSExp e >>= flip cons v) empty es
+evalSExp (AST.SCons e1 e2) = do
+  v1 <- evalSExp e1
+  v2 <- evalSExp e2
+  cons v1 v2
 
 cons :: MonadEval m => Value' m -> Value' m -> m (Value' m)
 cons v1 v2 = do
