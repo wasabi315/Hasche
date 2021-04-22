@@ -60,9 +60,16 @@ define = do
         e <- exp
         pure $! AST.Const x e,
       do
-        f : xs <- parens (some ident)
+        (f, xs) <- parens $ liftM2 (,) ident defArgs
         b <- body
         pure $! AST.Proc f xs b
+    ]
+
+defArgs :: Parser AST.Args
+defArgs =
+  choice
+    [ uncurry AST.ArgsRest <$!> try (improperList ident),
+      AST.Args <$!> many ident
     ]
 
 exp :: Parser AST.Exp
@@ -88,7 +95,7 @@ nonAtomicExp =
         pure $! AST.Quote e,
       do
         _ <- symbol "lambda"
-        xs <- parens (many ident)
+        xs <- lamArgs
         b <- body
         pure $! AST.Lam xs b,
       do
@@ -122,6 +129,23 @@ nonAtomicExp =
         pure $! AST.App f xs
     ]
 
+lamArgs :: Parser AST.Args
+lamArgs =
+  choice
+    [ AST.Rest <$!> ident,
+      parens . choice $
+        [ uncurry AST.ArgsRest <$!> try (improperList ident),
+          AST.Args <$!> many ident
+        ]
+    ]
+
+improperList :: Parser a -> Parser ([a], a)
+improperList p = do
+  xs <- some p
+  _ <- symbol "."
+  x <- p
+  pure (xs, x)
+
 body :: Parser AST.Body
 body = do
   ds <- many (try (parens define))
@@ -153,7 +177,7 @@ satom =
     ]
 
 sident :: Parser AST.Id
-sident = lexeme do
+sident = lexeme . try $ do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->
     isAlphaNum c
@@ -200,7 +224,7 @@ str = lexeme $ between (char '"') (char '"') (Text.concat <$!> many str')
         ]
 
 ident :: Parser AST.Id
-ident = lexeme do
+ident = lexeme . try $ do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->
     isAlphaNum c

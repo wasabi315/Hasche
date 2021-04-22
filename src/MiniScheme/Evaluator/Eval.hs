@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
@@ -48,10 +49,23 @@ evalExp env (AST.If p t e) = do
     _ -> evalExp env t
 evalExp env (AST.Lam args body) =
   alloc $ Proc env \env' vs -> do
+    let !lv = length vs
     env'' <- childEnv env'
-    when (length args /= length vs) do
-      throw (EvalError "illegal number of arguments")
-    zipWithM_ (bind env'') args vs
+    case args of
+      AST.Args as -> do
+        let !la = length as
+        when (la /= lv) do
+          throw (EvalError "illegal number of arguments")
+        zipWithM_ (bind env'') as vs
+      AST.ArgsRest as a -> do
+        let !la = length as
+        when (la > lv) do
+          throw (EvalError "illegal number of arguments")
+        let (vs', vs'') = splitAt la vs
+        zipWithM_ (bind env'') as vs'
+        foldrM cons empty vs'' >>= bind env'' a
+      AST.Rest a -> do
+        foldrM cons empty vs >>= bind env'' a
     evalBody env'' body
 evalExp env (AST.Let mname binds body) = do
   env' <- childEnv env

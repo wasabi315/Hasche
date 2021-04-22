@@ -5,6 +5,7 @@
 module MiniScheme.AST
   ( Prog (..),
     Def (..),
+    Args (..),
     Body (..),
     Exp (..),
     SExp (..),
@@ -24,13 +25,13 @@ data Prog
 
 data Def
   = Const Id Exp
-  | Proc Id [Id] Body
+  | Proc Id Args Body
   deriving (Show)
 
 data Exp
   = Atom Atom
   | Quote SExp
-  | Lam [Id] Body
+  | Lam Args Body
   | Set Id Exp
   | If Exp Exp (Maybe Exp)
   | Let (Maybe Id) [(Id, Exp)] Body
@@ -38,6 +39,12 @@ data Exp
   | LetRec (Maybe Id) [(Id, Exp)] Body
   | Begin [Exp]
   | App Exp [Exp]
+  deriving (Show)
+
+data Args
+  = Args [Id]
+  | ArgsRest [Id] Id
+  | Rest Id
   deriving (Show)
 
 data SExp
