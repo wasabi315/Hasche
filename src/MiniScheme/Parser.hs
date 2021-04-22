@@ -14,6 +14,7 @@ import Control.Exception.Safe (Exception)
 import Control.Monad
 import Data.Bifunctor
 import Data.Char
+import Data.List.NonEmpty (NonEmpty)
 import Data.List.NonEmpty qualified as NE
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -60,16 +61,20 @@ define = do
         e <- exp
         pure $! AST.Const x e,
       do
-        (f, xs) <- parens $ liftM2 (,) ident defArgs
+        (f, xs) <- procNameAndArgs
         b <- body
         pure $! AST.Proc f xs b
     ]
 
-defArgs :: Parser AST.Args
-defArgs =
-  choice
-    [ uncurry AST.ArgsRest <$!> try (improperList ident),
-      AST.Args <$!> many ident
+procNameAndArgs :: Parser (AST.Id, AST.Args)
+procNameAndArgs =
+  parens . choice $
+    [ do
+        (f NE.:| xs, i) <- try (improperList ident)
+        pure (f, AST.ArgsRest xs i),
+      do
+        f : xs <- some ident
+        pure (f, AST.Args xs)
     ]
 
 exp :: Parser AST.Exp
@@ -134,17 +139,17 @@ lamArgs =
   choice
     [ AST.Rest <$!> ident,
       parens . choice $
-        [ uncurry AST.ArgsRest <$!> try (improperList ident),
+        [ uncurry AST.ArgsRest . first NE.toList <$!> try (improperList ident),
           AST.Args <$!> many ident
         ]
     ]
 
-improperList :: Parser a -> Parser ([a], a)
+improperList :: Parser a -> Parser (NonEmpty a, a)
 improperList p = do
-  xs <- some p
+  x : xs <- some p
   _ <- symbol "."
-  x <- p
-  pure (xs, x)
+  y <- p
+  pure (x NE.:| xs, y)
 
 body :: Parser AST.Body
 body = do
