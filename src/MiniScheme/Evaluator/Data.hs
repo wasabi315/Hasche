@@ -7,20 +7,27 @@
 {-# LANGUAGE TupleSections #-}
 
 module MiniScheme.Evaluator.Data
-  ( Value' (..),
+  ( Value',
+    alloc,
+    val,
+    loc,
+    undef,
+    empty,
+    true,
+    false,
+    ValueKind (..),
     Number,
     expectBool,
     expectNum,
     expectStr,
     expectSym,
     expectProc,
-    Env',
+    Env,
     rootEnv,
     childEnv,
     lookup,
     bind,
     set,
-    Symbol,
     SymTable,
     newSymTable,
     strToSym,
@@ -38,114 +45,139 @@ import Data.IORef
 import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as Text
+import GHC.IO.Unsafe
 import MiniScheme.AST qualified as AST
+import System.Mem.StableName
 import Prelude hiding (lookup)
 
-data Value' m
+data Value' m = Value' (ValueKind m) (StableName (ValueKind m))
+
+instance Show (Value' m) where
+  show (Value' v _) = show v
+
+val :: Value' m -> ValueKind m
+val (Value' v _) = v
+
+loc :: Value' m -> StableName (ValueKind m)
+loc (Value' _ l) = l
+
+alloc :: MonadIO m => ValueKind n -> m (Value' n)
+alloc v = Value' v <$!> liftIO (makeStableName v)
+
+undef, empty, true, false :: Value' m
+undef = unsafePerformIO (alloc Undef)
+empty = unsafePerformIO (alloc Empty)
+true = unsafePerformIO (alloc (Bool True))
+false = unsafePerformIO (alloc (Bool False))
+{-# NOINLINE undef #-}
+{-# NOINLINE empty #-}
+{-# NOINLINE true #-}
+{-# NOINLINE false #-}
+
+data ValueKind m
   = Undef
   | Empty
-  | Num Number
   | Bool Bool
+  | Num Number
   | Str Text
   | Sym Symbol
-  | Proc (Env' m) (Env' m -> [Value' m] -> m (Value' m))
+  | Proc (Env m) (Env m -> [Value' m] -> m (Value' m))
 
 type Number = AST.Number
 
-instance Show (Value' m) where
+type Symbol = Text
+
+instance Show (ValueKind m) where
   show Undef = "#<undef>"
   show Empty = "()"
   show (Num n) = show n
   show (Bool b) = if b then "#t" else "#f"
   show (Str s) = show s
-  show (Sym s) = show s
+  show (Sym s) = Text.unpack s
   show (Proc _ _) = "<procedure>"
 
 expectNum :: MonadThrow m => Value' m -> m Integer
-expectNum (Num n) = pure n
-expectNum Undef = throw (EvalError "undefined value evaluated")
-expectNum _ = throw (EvalError "expect number")
+expectNum v = case val v of
+  Num n -> pure n
+  Undef -> throw (EvalError "undefined value evaluated")
+  _ -> throw (EvalError "expect number")
 
 expectBool :: MonadThrow m => Value' m -> m Bool
-expectBool (Bool b) = pure b
-expectBool Undef = throw (EvalError "undefined value evaluated")
-expectBool _ = throw (EvalError "expect boolean")
+expectBool v = case val v of
+  Bool b -> pure b
+  Undef -> throw (EvalError "undefined value evaluated")
+  _ -> throw (EvalError "expect boolean")
 
 expectStr :: MonadThrow m => Value' m -> m Text
-expectStr (Str s) = pure s
-expectStr Undef = throw (EvalError "undefined value evaluated")
-expectStr _ = throw (EvalError "expect string")
+expectStr v = case val v of
+  Str s -> pure s
+  Undef -> throw (EvalError "undefined value evaluated")
+  _ -> throw (EvalError "expect boolean")
 
-expectSym :: MonadThrow m => Value' m -> m Symbol
-expectSym (Sym s) = pure s
-expectSym Undef = throw (EvalError "undefined value evaluated")
-expectSym _ = throw (EvalError "expect string")
+expectSym :: MonadThrow m => Value' m -> m Text
+expectSym v = case val v of
+  Sym s -> pure s
+  Undef -> throw (EvalError "undefined value evaluated")
+  _ -> throw (EvalError "expect boolean")
 
 expectProc ::
   MonadThrow m =>
   Value' m ->
-  m (Env' m, Env' m -> [Value' m] -> m (Value' m))
-expectProc (Proc e f) = pure (e, f)
-expectProc Undef = throw (EvalError "undefined value evaluated")
-expectProc _ = throw (EvalError "expect procedure")
+  m (Env m, Env m -> [Value' m] -> m (Value' m))
+expectProc v = case val v of
+  Proc e f -> pure (e, f)
+  Undef -> throw (EvalError "undefined value evaluated")
+  _ -> throw (EvalError "expect boolean")
 
-data Env' m = Env'
+data Env m = Env
   { binds :: BasicHashTable AST.Id (IORef (Value' m)),
-    parent :: Maybe (Env' m)
+    parent :: Maybe (Env m)
   }
 
-rootEnv :: MonadIO m => m (Env' n)
-rootEnv = flip Env' Nothing <$!> liftIO HT.new
+rootEnv :: MonadIO m => m (Env n)
+rootEnv = flip Env Nothing <$!> liftIO HT.new
 
-childEnv :: MonadIO m => Env' n -> m (Env' n)
-childEnv parent = flip Env' (Just parent) <$!> liftIO HT.new
+childEnv :: MonadIO m => Env n -> m (Env n)
+childEnv parent = flip Env (Just parent) <$!> liftIO HT.new
 
-lookup :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> m (IORef (Value' n))
+lookup :: (MonadIO m, MonadThrow m) => Env n -> AST.Id -> m (IORef (Value' n))
 lookup env i = lookup' env
   where
-    lookup' Env' {..} = do
+    lookup' Env {..} = do
       liftIO (HT.lookup binds i) >>= \case
         Just v -> pure v
         Nothing -> case parent of
           Just env' -> lookup' env'
           Nothing -> throw (EvalError $ "Unbound identifier: " <> i)
 
-bind :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> Value' n -> m ()
-bind Env' {..} i v = do
+bind :: (MonadIO m, MonadThrow m) => Env n -> AST.Id -> Value' n -> m ()
+bind Env {..} i v = do
   declared <- liftIO $ HT.mutateIO binds i \case
     Just v' -> pure (Just v', True)
     Nothing -> (,False) . Just <$> newIORef v
   when declared do
     throw (EvalError "identifier already declared")
 
-set :: (MonadIO m, MonadThrow m) => Env' n -> AST.Id -> Value' n -> m ()
+set :: (MonadIO m, MonadThrow m) => Env n -> AST.Id -> Value' n -> m ()
 set e i v = do
   ref <- lookup e i
   liftIO $ modifyIORef' ref (const v)
 
-data Symbol = Symbol Text (IORef ())
+newtype SymTable m = SymTable (BasicHashTable Text (Value' m))
 
-instance Eq Symbol where
-  Symbol _ p1 == Symbol _ p2 = p1 == p2
-
-instance Show Symbol where
-  show (Symbol name _) = Text.unpack name
-
-newtype SymTable = SymTable (BasicHashTable Text Symbol)
-
-newSymTable :: MonadIO m => m SymTable
+newSymTable :: MonadIO m => m (SymTable n)
 newSymTable = SymTable <$> liftIO HT.new
 
 symToStr :: Symbol -> Text
-symToStr (Symbol name _) = name
+symToStr name = name
 
-strToSym :: MonadIO m => SymTable -> Text -> m Symbol
+strToSym :: MonadIO m => SymTable m -> Text -> m (Value' m)
 strToSym (SymTable tbl) t = liftIO do
   HT.mutateIO tbl t \case
     Nothing -> do
-      sym <- Symbol t <$!> newIORef ()
-      pure (Just sym, sym)
-    Just sym -> pure (Just sym, sym)
+      s <- alloc (Sym t)
+      pure (Just s, s)
+    Just s -> pure (Just s, s)
 
 newtype EvalError = EvalError Text
 

@@ -24,110 +24,118 @@ import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Monad
 import MiniScheme.Parser (parseNum)
 
-builtinEnv :: (MonadIO m, MonadThrow m, MonadEval n) => m (Env' n)
+builtinEnv :: (MonadIO m, MonadThrow m, MonadEval n) => m (Env n)
 builtinEnv = do
   env <- rootEnv
 
-  bind env "number?" $
-    proc1 \case
-      Num _ -> pure $! Bool True
-      _ -> pure $! Bool False
+  bind env "number?"
+    =<< proc1 \v -> case val v of
+      Num _ -> pure true
+      _ -> pure false
 
-  bind env "boolean?" $
-    proc1 \case
-      Bool _ -> pure $! Bool True
-      _ -> pure $! Bool False
+  bind env "boolean?"
+    =<< proc1 \v -> case val v of
+      Bool _ -> pure true
+      _ -> pure false
 
-  bind env "string?" $
-    proc1 \case
-      Str _ -> pure $! Bool True
-      _ -> pure $! Bool False
+  bind env "string?"
+    =<< proc1 \v -> case val v of
+      Str _ -> pure true
+      _ -> pure false
 
-  bind env "symbol?" $
-    proc1 \case
-      Sym _ -> pure $! Bool True
-      _ -> pure $! Bool False
+  bind env "symbol?"
+    =<< proc1 \v -> case val v of
+      Sym _ -> pure true
+      _ -> pure false
 
-  bind env "procedure?" $
-    proc1 \case
-      Proc _ _ -> pure $! Bool True
-      _ -> pure $! Bool False
+  bind env "procedure?"
+    =<< proc1 \v -> case val v of
+      Proc _ _ -> pure true
+      _ -> pure false
 
-  bind env "+" (numFold (+) 0)
-  bind env "*" (numFold (*) 1)
+  bind env "+" =<< numFold (+) 0
+  bind env "*" =<< numFold (*) 1
 
-  bind env "-" $
-    builtin $
-      traverse expectNum >=> \case
-        [] -> throw (EvalError "expect at least one number")
-        n : ns -> pure $! Num (n - sum ns)
+  bind env "-"
+    =<< builtin
+      ( traverse expectNum >=> \case
+          [] -> throw (EvalError "expect at least one number")
+          n : ns -> alloc $ Num (n - sum ns)
+      )
 
-  bind env "/" $
-    builtin $
-      traverse expectNum >=> \case
-        [] -> throw (EvalError "expect at least one number")
-        n : ns -> pure $! Num (n `div` product ns)
+  bind env "/"
+    =<< builtin
+      ( traverse expectNum >=> \case
+          [] -> throw (EvalError "expect at least one number")
+          n : ns -> alloc $ Num (n `div` product ns)
+      )
 
-  bind env "=" (numBinPred (==))
-  bind env ">" (numBinPred (>))
-  bind env ">=" (numBinPred (>=))
-  bind env "<" (numBinPred (<))
-  bind env "<=" (numBinPred (<=))
+  bind env "=" =<< numBinPred (==)
+  bind env ">" =<< numBinPred (>)
+  bind env ">=" =<< numBinPred (>=)
+  bind env "<" =<< numBinPred (<)
+  bind env "<=" =<< numBinPred (<=)
 
-  bind env "not" $
-    proc1 \case
-      Bool False -> pure $! Bool True
-      _ -> pure $! Bool False
+  bind env "not"
+    =<< proc1 \v -> case val v of
+      Bool False -> pure true
+      _ -> pure false
 
-  bind env "string-append" $
-    builtin \vs -> Str . Text.concat <$!> traverse expectStr vs
+  bind env "string-append"
+    =<< builtin (traverse expectStr >=> alloc . Str . Text.concat)
 
-  bind env "string->number" $
-    proc1 $
-      expectStr >=> \s -> case parseNum s of
-        Just n -> pure $! Num n
-        Nothing -> throw (EvalError "Failed to convert string->number")
+  bind env "string->number"
+    =<< proc1
+      ( expectStr >=> \s -> case parseNum s of
+          Just n -> alloc $ Num n
+          Nothing -> throw (EvalError "Failed to convert string->number")
+      )
 
-  bind env "number->string" $
-    proc1 \v -> Str . Text.pack . show <$!> expectNum v
+  bind env "number->string"
+    =<< proc1 (expectNum >=> alloc . Str . Text.pack . show)
 
-  bind env "string->symbol" $
-    proc1 $
-      expectStr >=> \s -> do
-        symtbl <- ask
-        Sym <$!> strToSym symtbl s
+  bind env "string->symbol"
+    =<< proc1
+      ( expectStr >=> \s -> do
+          symtbl <- ask
+          strToSym symtbl s
+      )
 
-  bind env "symbol->string" $
-    proc1 \v -> Str . symToStr <$!> expectSym v
+  bind env "symbol->string"
+    =<< proc1 (expectSym >=> alloc . Str . symToStr)
+
+  bind env "eq?"
+    =<< proc2 \v1 v2 ->
+      pure $! if loc v1 == loc v2 then true else false
 
   pure env
 
-builtin :: ([Value' m] -> m (Value' m)) -> Value' m
-builtin f = Proc emptyEnv (const f)
+builtin :: MonadIO m => ([Value' n] -> n (Value' n)) -> m (Value' n)
+builtin f = alloc $ Proc emptyEnv (const f)
 
-emptyEnv :: Env' n
+emptyEnv :: Env n
 emptyEnv = unsafePerformIO rootEnv
 {-# NOINLINE emptyEnv #-}
 
-proc1 :: MonadEval m => (Value' m -> m (Value' m)) -> Value' m
+proc1 :: (MonadIO m, MonadEval n) => (Value' n -> n (Value' n)) -> m (Value' n)
 proc1 f =
   builtin \case
     [v] -> f v
     _ -> throw (EvalError "illegal number of arguments")
 
-proc2 :: MonadEval m => (Value' m -> Value' m -> m (Value' m)) -> Value' m
+proc2 :: (MonadIO m, MonadEval n) => (Value' n -> Value' n -> n (Value' n)) -> m (Value' n)
 proc2 f =
   builtin \case
     [v1, v2] -> f v1 v2
     _ -> throw (EvalError "illegal number of arguments")
 
-numFold :: MonadEval m => (Number -> Number -> Number) -> Number -> Value' m
+numFold :: (MonadIO m, MonadEval n) => (Number -> Number -> Number) -> Number -> m (Value' n)
 numFold f n =
-  builtin \vs -> Num . foldl' f n <$!> traverse expectNum vs
+  builtin $ traverse expectNum >=> alloc . Num . foldl' f n
 
-numBinPred :: MonadEval m => (Number -> Number -> Bool) -> Value' m
+numBinPred :: (MonadIO m, MonadEval n) => (Number -> Number -> Bool) -> m (Value' n)
 numBinPred f =
   proc2 \v1 v2 -> do
     n1 <- expectNum v1
     n2 <- expectNum v2
-    pure $! Bool (f n1 n2)
+    pure $! if f n1 n2 then true else false
