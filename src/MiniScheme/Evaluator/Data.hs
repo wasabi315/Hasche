@@ -28,6 +28,7 @@ module MiniScheme.Evaluator.Data
     lookup,
     bind,
     set,
+    Symbol,
     SymTable,
     newSymTable,
     strToSym,
@@ -85,15 +86,13 @@ data ValueKind m
 
 type Number = AST.Number
 
-type Symbol = Text
-
 instance Show (ValueKind m) where
   show Undef = "#<undef>"
   show Empty = "()"
   show (Num n) = show n
   show (Bool b) = if b then "#t" else "#f"
   show (Str s) = show s
-  show (Sym s) = Text.unpack s
+  show (Sym s) = show s
   show (Proc _ _) = "<procedure>"
 
 expectNum :: MonadThrow m => Value' m -> m Integer
@@ -114,7 +113,7 @@ expectStr v = case val v of
   Undef -> throw (EvalError "undefined value evaluated")
   _ -> throw (EvalError "expect boolean")
 
-expectSym :: MonadThrow m => Value' m -> m Text
+expectSym :: MonadThrow m => Value' m -> m Symbol
 expectSym v = case val v of
   Sym s -> pure s
   Undef -> throw (EvalError "undefined value evaluated")
@@ -163,19 +162,24 @@ set e i v = do
   ref <- lookup e i
   liftIO $ modifyIORef' ref (const v)
 
+newtype Symbol = Symbol Text
+
+instance Show Symbol where
+  show (Symbol s) = Text.unpack s
+
 newtype SymTable m = SymTable (BasicHashTable Text (Value' m))
 
 newSymTable :: MonadIO m => m (SymTable n)
 newSymTable = SymTable <$> liftIO HT.new
 
 symToStr :: Symbol -> Text
-symToStr name = name
+symToStr (Symbol name) = name
 
 strToSym :: MonadIO m => SymTable m -> Text -> m (Value' m)
 strToSym (SymTable tbl) t = liftIO do
   HT.mutateIO tbl t \case
     Nothing -> do
-      s <- alloc (Sym t)
+      s <- alloc (Sym (Symbol t))
       pure (Just s, s)
     Just s -> pure (Just s, s)
 
