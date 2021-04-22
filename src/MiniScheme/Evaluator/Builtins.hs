@@ -18,6 +18,7 @@ import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable
+import Data.IORef
 import Data.Text qualified as Text
 import GHC.IO.Unsafe
 import MiniScheme.Evaluator.Data
@@ -30,7 +31,17 @@ builtinEnv = do
 
   traverse_
     (\(i, v) -> bind env i =<< v)
-    [ ( "number?",
+    [ ( "null?",
+        proc1 \v -> case val v of
+          Empty -> pure true
+          _ -> pure false
+      ),
+      ( "pair?",
+        proc1 \v -> case val v of
+          Pair _ _ -> pure true
+          _ -> pure false
+      ),
+      ( "number?",
         proc1 \v -> case val v of
           Num _ -> pure true
           _ -> pure false
@@ -107,6 +118,24 @@ builtinEnv = do
       ( "eq?",
         proc2 \v1 v2 ->
           pure $! if loc v1 == loc v2 then true else false
+      ),
+      ( "car",
+        proc1 (expectPair >=> liftIO . readIORef . fst)
+      ),
+      ( "cdr",
+        proc1 (expectPair >=> liftIO . readIORef . snd)
+      ),
+      ( "set-car!",
+        proc2 \v1 v2 -> do
+          (r1, _) <- expectPair v1
+          liftIO $ modifyIORef' r1 (const v2)
+          pure undef
+      ),
+      ( "set-cdr!",
+        proc2 \v1 v2 -> do
+          (_, r2) <- expectPair v1
+          liftIO $ modifyIORef' r2 (const v2)
+          pure undef
       )
     ]
 

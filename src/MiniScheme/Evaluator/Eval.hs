@@ -35,6 +35,10 @@ evalDef env (AST.Const i e) = do
 
 evalExp :: MonadEval m => Env m -> AST.Exp -> m (Value' m)
 evalExp env (AST.Atom a) = evalAtom env a
+evalExp env (AST.Pair e1 e2) = do
+  r1 <- evalExp env e1 >>= liftIO . newIORef
+  r2 <- evalExp env e2 >>= liftIO . newIORef
+  alloc $ Pair r1 r2
 evalExp env (AST.Set i e) = do
   v <- evalExp env e
   set env i v

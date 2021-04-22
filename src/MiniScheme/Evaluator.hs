@@ -10,6 +10,7 @@
 module MiniScheme.Evaluator
   ( newEvaluator,
     Value,
+    pretty,
     EvalError,
   )
 where
@@ -33,5 +34,5 @@ newEvaluator = do
 
 data Value = forall m. Value (Value' m)
 
-instance Show Value where
-  show (Value v) = show v
+pretty :: Value -> IO String
+pretty (Value v) = prettyValue v

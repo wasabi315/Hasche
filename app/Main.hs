@@ -5,6 +5,7 @@
 
 module Main where
 
+import Control.Monad
 import Data.Foldable
 import Data.Function
 import Data.String
@@ -59,7 +60,10 @@ repl = do
         | txt == "" -> loop
         | txt == ":help" || txt == ":?" -> putStrLn helpText >> loop
         | txt == ":quit" || txt == ":q" -> pure ()
-        | otherwise -> interp (fromString txt) >>= either print print >> loop
+        | otherwise ->
+          interp (fromString txt)
+            >>= either print (pretty >=> putStrLn)
+            >> loop
 
   exitSuccess
 

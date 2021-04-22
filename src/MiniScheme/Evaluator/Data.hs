@@ -16,7 +16,9 @@ module MiniScheme.Evaluator.Data
     true,
     false,
     ValueKind (..),
+    prettyValue,
     Number,
+    expectPair,
     expectBool,
     expectNum,
     expectStr,
@@ -53,9 +55,6 @@ import Prelude hiding (lookup)
 
 data Value' m = Value' (ValueKind m) (StableName (ValueKind m))
 
-instance Show (Value' m) where
-  show (Value' v _) = show v
-
 val :: Value' m -> ValueKind m
 val (Value' v _) = v
 
@@ -78,6 +77,7 @@ false = unsafePerformIO (alloc (Bool False))
 data ValueKind m
   = Undef
   | Empty
+  | Pair (IORef (Value' m)) (IORef (Value' m))
   | Bool Bool
   | Num Number
   | Str Text
@@ -86,20 +86,33 @@ data ValueKind m
 
 type Number = AST.Number
 
-instance Show (ValueKind m) where
-  show Undef = "#<undef>"
-  show Empty = "()"
-  show (Num n) = show n
-  show (Bool b) = if b then "#t" else "#f"
-  show (Str s) = show s
-  show (Sym s) = show s
-  show (Proc _ _) = "<procedure>"
+prettyValue :: Value' m -> IO String
+prettyValue = fmap ($ "") . prettyValue'
+  where
+    prettyValue' v = case val v of
+      Undef -> pure $ showString "#<undef>"
+      Empty -> pure $ showString "()"
+      Pair r1 r2 -> do
+        s1 <- readIORef r1 >>= prettyValue'
+        s2 <- readIORef r2 >>= prettyValue'
+        pure . showParen True $ s1 . showString " . " . s2
+      Num n -> pure $ shows n
+      Bool b -> pure . showString $ if b then "#t" else "#f"
+      Str s -> pure $ shows s
+      Sym s -> pure $ shows s
+      Proc _ _ -> pure $ showString "<procedure>"
 
 expectNum :: MonadThrow m => Value' m -> m Integer
 expectNum v = case val v of
   Num n -> pure n
   Undef -> throw (EvalError "undefined value evaluated")
   _ -> throw (EvalError "expect number")
+
+expectPair :: MonadThrow m => Value' m -> m (IORef (Value' m), IORef (Value' m))
+expectPair v = case val v of
+  Pair r1 r2 -> pure (r1, r2)
+  Undef -> throw (EvalError "undefined value evaluated")
+  _ -> throw (EvalError "expect pair")
 
 expectBool :: MonadThrow m => Value' m -> m Bool
 expectBool v = case val v of
@@ -175,7 +188,7 @@ newSymTable = SymTable <$> liftIO HT.new
 symToStr :: Symbol -> Text
 symToStr (Symbol name) = name
 
-strToSym :: MonadIO m => SymTable m -> Text -> m (Value' m)
+strToSym :: MonadIO m => SymTable n -> Text -> m (Value' n)
 strToSym (SymTable tbl) t = liftIO do
   HT.mutateIO tbl t \case
     Nothing -> do

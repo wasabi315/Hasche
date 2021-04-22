@@ -4,6 +4,7 @@
 
 module MiniScheme.Driver
   ( newInterpreter,
+    pretty,
     Error,
   )
 where
