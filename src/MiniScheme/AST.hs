@@ -25,7 +25,6 @@ data Def
 
 data Exp
   = Atom Atom
-  | Pair Exp Exp
   | Lam [Id] Body
   | Set Id Exp
   | If Exp Exp (Maybe Exp)

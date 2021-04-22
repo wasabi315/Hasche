@@ -74,12 +74,7 @@ atomicExp = AST.Atom <$> atom
 nonAtomicExp :: Parser AST.Exp
 nonAtomicExp =
   choice
-    [ try do
-        e1 <- exp
-        _ <- symbol "."
-        e2 <- exp
-        pure $! AST.Pair e1 e2,
-      do
+    [ do
         _ <- symbol "lambda"
         xs <- parens (many ident)
         b <- body

@@ -119,6 +119,12 @@ builtinEnv = do
         proc2 \v1 v2 ->
           pure $! if loc v1 == loc v2 then true else false
       ),
+      ( "cons",
+        proc2 \v1 v2 -> do
+          r1 <- liftIO (newIORef v1)
+          r2 <- liftIO (newIORef v2)
+          alloc $ Pair r1 r2
+      ),
       ( "car",
         proc1 (expectPair >=> liftIO . readIORef . fst)
       ),
