@@ -28,7 +28,7 @@ import Text.Megaparsec.Error.Builder
 import Prelude hiding (exp)
 
 parseProg :: Text -> Either ParseError [AST.Prog]
-parseProg = first ParseError . parse (space *> some prog <* eof) ""
+parseProg = first ParseError . parse (space *> many prog <* eof) ""
 
 -- for string->number
 parseNum :: Text -> Maybe AST.Number

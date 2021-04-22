@@ -21,7 +21,7 @@ import MiniScheme.Evaluator.Monad
 import Prelude hiding (lookup)
 
 eval :: MonadEval m => Env m -> [AST.Prog] -> m (Value' m)
-eval env = fmap last . traverse (evalProg env)
+eval env = fmap (maybe empty NE.last . NE.nonEmpty) . traverse (evalProg env)
 
 evalProg :: MonadEval m => Env m -> AST.Prog -> m (Value' m)
 evalProg env (AST.Exp e) = evalExp env e
