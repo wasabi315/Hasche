@@ -88,11 +88,6 @@ builtinEnv = do
       (">=", numBinPred (>=)),
       ("<", numBinPred (<)),
       ("<=", numBinPred (<=)),
-      ( "not",
-        proc1 \v -> case val v of
-          Bool False -> pure true
-          _ -> pure false
-      ),
       ( "string-append",
         builtin (traverse expectStr >=> alloc . Str . Text.concat)
       ),

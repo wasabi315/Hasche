@@ -21,6 +21,7 @@ import Data.Text (Text)
 data Prog
   = Exp Exp
   | Def Def
+  | Load Text
   deriving (Show)
 
 data Def

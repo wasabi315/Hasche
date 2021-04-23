@@ -18,9 +18,12 @@ import Control.Monad.IO.Class
 import Data.Foldable
 import Data.IORef
 import Data.List.NonEmpty qualified as NE
+import Data.Text qualified as Text
+import Data.Text.IO qualified as Text
 import MiniScheme.AST qualified as AST
 import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Monad
+import MiniScheme.Parser
 import Prelude hiding (lookup)
 
 eval :: MonadEval m => Env m -> [AST.Prog] -> m (Value' m)
@@ -29,6 +32,11 @@ eval env = fmap (maybe empty NE.last . NE.nonEmpty) . traverse (evalProg env)
 evalProg :: MonadEval m => Env m -> AST.Prog -> m (Value' m)
 evalProg env (AST.Exp e) = evalExp env e
 evalProg env (AST.Def def) = evalDef env def
+evalProg env (AST.Load path) = do
+  txt <- liftIO (Text.readFile (Text.unpack path))
+  case parseProg txt of
+    Left err -> throw (EvalError (Text.pack (show err)))
+    Right prog -> eval env prog
 
 evalDef :: MonadEval m => Env m -> AST.Def -> m (Value' m)
 evalDef env (AST.Const i e) = do

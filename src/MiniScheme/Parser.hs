@@ -48,8 +48,12 @@ type Parser = Parsec Void Text
 prog :: Parser AST.Prog
 prog =
   choice
-    [ AST.Exp <$> (atomicExp <|> quotedExp),
-      parens $ (AST.Def <$> define) <|> (AST.Exp <$> nonAtomicExp)
+    [ AST.Exp <$!> (atomicExp <|> quotedExp),
+      parens . choice $
+        [ AST.Def <$!> define,
+          AST.Load <$!> (symbol "load" *> str),
+          AST.Exp <$!> nonAtomicExp
+        ]
     ]
 
 define :: Parser AST.Def
