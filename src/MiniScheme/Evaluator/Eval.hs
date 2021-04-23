@@ -31,8 +31,9 @@ evalProg :: MonadEval m => Env m -> AST.Prog -> m (Value' m)
 evalProg env (AST.Exp e) = evalExp env e
 evalProg env (AST.Def def) = evalDef env def
 evalProg env (AST.Load path) = do
-  txt <- liftIO (Text.readFile (Text.unpack path))
-  case parseProg txt of
+  let path' = Text.unpack path
+  txt <- liftIO (Text.readFile path')
+  case parseProg path' txt of
     Left err -> throw (EvalError (Text.pack (show err)))
     Right prog -> eval env prog
 

@@ -41,7 +41,7 @@ parserInfo =
 exec :: FilePath -> IO ()
 exec path = do
   txt <- Text.readFile path
-  interp <- MS.newInterpreter
+  interp <- MS.newInterpreter path
   interp txt >>= \case
     Right _ -> exitSuccess
     Left err -> hPrint stderr err *> exitFailure
@@ -51,7 +51,7 @@ repl = do
   hSetBuffering stdout NoBuffering
   putStrLn headerText
 
-  interp <- MS.newInterpreter
+  interp <- MS.newInterpreter "<interactive>"
 
   fix \loop -> do
     putStr promptText

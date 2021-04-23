@@ -25,11 +25,11 @@ instance Show Error where
 
 instance Exception Error
 
-newInterpreter :: IO (Text -> IO (Either Error Value))
-newInterpreter = do
+newInterpreter :: FilePath -> IO (Text -> IO (Either Error Value))
+newInterpreter path = do
   eval <- newEvaluator
 
   pure \txt ->
-    case parseProg txt of
+    case parseProg path txt of
       Left err -> pure (Left (ParseError err))
       Right prog -> first EvalError <$> eval prog
