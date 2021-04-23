@@ -48,10 +48,10 @@ data Args
 
 data SExp
   = SAtom Atom
-  | SCons SExp SExp
+  | SPair SExp SExp
   deriving (Show)
 
-infixr 5 `SCons`
+infixr 5 `SPair`
 
 data Body
   = Body [Def] (NonEmpty Exp)

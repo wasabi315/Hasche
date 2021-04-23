@@ -166,15 +166,15 @@ sexp =
         e <- sexp
         pure
           $! AST.SAtom (AST.Id "quote")
-          `AST.SCons` e
-          `AST.SCons` AST.SAtom AST.Empty,
+          `AST.SPair` e
+          `AST.SPair` AST.SAtom AST.Empty,
       parens . choice $
         [ do
             (es, e) <- try (improperList sexp)
-            pure $! foldr AST.SCons e es,
+            pure $! foldr AST.SPair e es,
           do
             es <- some sexp
-            pure $! foldr AST.SCons (AST.SAtom AST.Empty) es
+            pure $! foldr AST.SPair (AST.SAtom AST.Empty) es
         ]
     ]
 
