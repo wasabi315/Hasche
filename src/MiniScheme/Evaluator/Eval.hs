@@ -7,8 +7,6 @@
 
 module MiniScheme.Evaluator.Eval
   ( eval,
-    cons,
-    apply,
   )
 where
 
@@ -160,21 +158,3 @@ cons v1 v2 = do
   r1 <- liftIO (newIORef v1)
   r2 <- liftIO (newIORef v2)
   alloc $ Pair r1 r2
-
-apply :: MonadEval m => [Value' m] -> m (Value' m)
-apply [] = throw (EvalError "illegal number of arguments")
-apply [_] = throw (EvalError "illegal number of arguments")
-apply (f : xs) = do
-  (env, func) <- expectProc f
-  args <- (init xs ++) <$!> pairToList (last xs)
-  func env args
-
-pairToList :: MonadIO m => Value' m -> m [Value' m]
-pairToList v = case val v of
-  Empty -> pure []
-  Pair r1 r2 -> do
-    v1 <- liftIO (readIORef r1)
-    v2 <- liftIO (readIORef r2)
-    vs <- pairToList v2
-    pure $! v1 : vs
-  _ -> pure [v]
