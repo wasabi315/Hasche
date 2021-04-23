@@ -11,21 +11,27 @@ module MiniScheme.Evaluator.Monad
 where
 
 import Control.Exception.Safe
-import Control.Monad.IO.Class
+import Control.Monad.Cont
 import Control.Monad.Reader
 import MiniScheme.Evaluator.Data
 
-type MonadEval m = (MonadReader (SymTable m) m, MonadThrow m, MonadIO m)
+type MonadEval m =
+  ( MonadReader (SymTable m) m,
+    MonadCont m,
+    MonadThrow m,
+    MonadIO m
+  )
 
-newtype Evaluator a = Evaluator (ReaderT (SymTable Evaluator) IO a)
+newtype Evaluator r a = Evaluator (ReaderT (SymTable (Evaluator r)) (ContT r IO) a)
   deriving
     ( Functor,
       Applicative,
       Monad,
       MonadIO,
       MonadThrow,
-      MonadReader (SymTable Evaluator)
+      MonadReader (SymTable (Evaluator r)),
+      MonadCont
     )
 
-runEvaluator :: SymTable Evaluator -> Evaluator a -> IO a
-runEvaluator symtbl (Evaluator m) = runReaderT m symtbl
+runEvaluator :: Evaluator r a -> SymTable (Evaluator r) -> (a -> IO r) -> IO r
+runEvaluator (Evaluator m) symtbl = runContT (runReaderT m symtbl)

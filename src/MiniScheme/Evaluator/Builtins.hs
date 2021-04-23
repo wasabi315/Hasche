@@ -16,7 +16,7 @@ where
 
 import Control.Exception.Safe
 import Control.Monad
-import Control.Monad.IO.Class
+import Control.Monad.Cont
 import Data.Foldable
 import Data.IORef
 import Data.Text qualified as Text
@@ -145,6 +145,12 @@ builtinEnv = do
       ),
       ( "apply",
         builtin apply
+      ),
+      ( "call/cc",
+        proc1 \v -> do
+          callCC \k -> do
+            c <- alloc $ Cont k
+            apply [v, c]
       )
     ]
 

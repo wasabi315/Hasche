@@ -29,7 +29,7 @@ newEvaluator = do
 
   pure \prog ->
     catch
-      (Right . Value <$> runEvaluator symtbl (eval env prog))
+      (runEvaluator (eval env prog) symtbl (pure . Right . Value))
       (pure . Left)
 
 data Value = forall m. Value (Value' m)

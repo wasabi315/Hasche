@@ -2,6 +2,8 @@
 (define (not x) (if x #f #t))
 (define (neq? x y) (not (eq? x y)))
 
+(define call-with-current-continuation call/cc)
+
 ; Lists, Pairs
 (define (list . l) l)
 

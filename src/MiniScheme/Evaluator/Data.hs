@@ -83,6 +83,7 @@ data ValueKind m
   | Str Text
   | Sym Symbol
   | Proc (Env m) (Env m -> [Value' m] -> m (Value' m))
+  | Cont (Value' m -> m (Value' m))
 
 type Number = AST.Number
 
@@ -98,6 +99,7 @@ prettyValue = fmap ($ "") . prettyValue' . val
       Str s -> pure $ shows s
       Sym s -> pure $ shows s
       Proc _ _ -> pure $ showString "<procedure>"
+      Cont _ -> pure $ showString "<continuation>"
 
     prettyPairs = \case
       Pair r1 r2 -> do

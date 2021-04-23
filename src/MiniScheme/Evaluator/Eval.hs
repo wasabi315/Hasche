@@ -126,9 +126,17 @@ evalExp env (AST.Begin es) = do
   vs <- traverse (evalExp env) es
   pure $! maybe empty NE.last (NE.nonEmpty vs)
 evalExp env (AST.App e es) = do
-  (env', func) <- evalExp env e >>= expectProc
-  args <- traverse (evalExp env) es
-  func env' args
+  evalExp env e >>= \v -> case val v of
+    Proc env' func -> do
+      args <- traverse (evalExp env) es
+      func env' args
+    Cont cont -> do
+      when (length es /= 1) do
+        throw (EvalError "illegal number of arguments")
+      arg <- evalExp env (head es)
+      cont arg
+    _ -> do
+      throw (EvalError "expect procedure or continuation")
 
 evalBody :: MonadEval m => Env m -> AST.Body -> m (Value' m)
 evalBody env (AST.Body ds es) = do
