@@ -112,8 +112,13 @@ builtinEnv = do
         proc1 (expectSym >=> alloc . Str . symToStr)
       ),
       ( "eq?",
-        proc2 \v1 v2 ->
-          pure $! if loc v1 == loc v2 then true else false
+        proc2 \x y -> bool <$!> isEq x y
+      ),
+      ( "eqv?",
+        proc2 \x y -> bool <$!> isEqv x y
+      ),
+      ( "equal?",
+        proc2 \x y -> bool <$!> isEqual x y
       ),
       ( "cons",
         proc2 cons
@@ -172,3 +177,27 @@ numBinPred f =
     n1 <- expectNum v1
     n2 <- expectNum v2
     pure $! if f n1 n2 then true else false
+
+bool :: Bool -> Value' m
+bool b = if b then true else false
+
+isEq :: MonadIO m => Value' m -> Value' m -> m Bool
+isEq v w = pure $! loc v == loc w
+
+isEqv :: MonadIO m => Value' m -> Value' m -> m Bool
+isEqv x y = case (val x, val y) of
+  (Num n1, Num n2) -> pure $! n1 == n2
+  _ -> isEq x y
+
+isEqual :: MonadIO m => Value' m -> Value' m -> m Bool
+isEqual x y = case (val x, val y) of
+  (Pair r1 r2, Pair r3 r4) -> do
+    v1 <- liftIO (readIORef r1)
+    v3 <- liftIO (readIORef r3)
+    isEqual v1 v3 >>= \case
+      False -> pure False
+      True -> do
+        v2 <- liftIO (readIORef r2)
+        v4 <- liftIO (readIORef r4)
+        isEqual v2 v4
+  _ -> isEqv x y
