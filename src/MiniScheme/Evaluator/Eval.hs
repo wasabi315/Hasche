@@ -7,6 +7,8 @@
 
 module MiniScheme.Evaluator.Eval
   ( eval,
+    apply,
+    cons,
   )
 where
 
@@ -126,17 +128,9 @@ evalExp env (AST.Begin es) = do
   vs <- traverse (evalExp env) es
   pure $! maybe empty NE.last (NE.nonEmpty vs)
 evalExp env (AST.App e es) = do
-  evalExp env e >>= \v -> case val v of
-    Proc env' func -> do
-      args <- traverse (evalExp env) es
-      func env' args
-    Cont cont -> do
-      when (length es /= 1) do
-        throw (EvalError "illegal number of arguments")
-      arg <- evalExp env (head es)
-      cont arg
-    _ -> do
-      throw (EvalError "expect procedure or continuation")
+  v <- evalExp env e
+  vs <- traverse (evalExp env) es
+  apply v vs
 
 evalBody :: MonadEval m => Env m -> AST.Body -> m (Value' m)
 evalBody env (AST.Body ds es) = do
@@ -167,3 +161,14 @@ cons v1 v2 = do
   r1 <- liftIO (newIORef v1)
   r2 <- liftIO (newIORef v2)
   alloc $ Pair r1 r2
+
+apply :: MonadEval m => Value' m -> [Value' m] -> m (Value' m)
+apply f xs =
+  case val f of
+    Proc env' func -> func env' xs
+    Cont cont -> do
+      when (length xs /= 1) do
+        throw (EvalError "illegal number of arguments")
+      cont (head xs)
+    _ -> do
+      throw (EvalError "expect procedure or continuation")

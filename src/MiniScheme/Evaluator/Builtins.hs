@@ -22,6 +22,7 @@ import Data.IORef
 import Data.Text qualified as Text
 import GHC.IO.Unsafe
 import MiniScheme.Evaluator.Data
+import MiniScheme.Evaluator.Eval
 import MiniScheme.Evaluator.Monad
 import MiniScheme.Parser (parseNum)
 
@@ -120,10 +121,7 @@ builtinEnv = do
         proc2 \x y -> bool <$!> isEqual x y
       ),
       ( "cons",
-        proc2 \v1 v2 -> do
-          r1 <- liftIO (newIORef v1)
-          r2 <- liftIO (newIORef v2)
-          alloc $ Pair r1 r2
+        proc2 cons
       ),
       ( "car",
         proc1 (expectPair >=> liftIO . readIORef . fst)
@@ -144,13 +142,18 @@ builtinEnv = do
           pure undef
       ),
       ( "apply",
-        builtin apply
+        builtin \case
+          [] -> throw (EvalError "illegal number of arguments")
+          [_] -> throw (EvalError "illegal number of arguments")
+          (f : xs) -> do
+            args <- (init xs ++) <$!> pairToList (last xs)
+            apply f args
       ),
       ( "call/cc",
         proc1 \v -> do
           callCC \k -> do
             c <- alloc $ Cont k
-            apply [v, c]
+            apply v [c]
       )
     ]
 
@@ -209,14 +212,6 @@ isEqual x y = case (val x, val y) of
         v4 <- liftIO (readIORef r4)
         isEqual v2 v4
   _ -> isEqv x y
-
-apply :: MonadEval m => [Value' m] -> m (Value' m)
-apply [] = throw (EvalError "illegal number of arguments")
-apply [_] = throw (EvalError "illegal number of arguments")
-apply (f : xs) = do
-  (env, func) <- expectProc f
-  args <- (init xs ++) <$!> pairToList (last xs)
-  func env args
 
 pairToList :: MonadIO m => Value' m -> m [Value' m]
 pairToList v = case val v of
