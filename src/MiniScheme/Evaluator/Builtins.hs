@@ -22,6 +22,7 @@ import Data.IORef
 import Data.Text qualified as Text
 import GHC.IO.Unsafe
 import MiniScheme.Evaluator.Data
+import MiniScheme.Evaluator.Eval
 import MiniScheme.Evaluator.Monad
 import MiniScheme.Parser (parseNum)
 
@@ -120,10 +121,7 @@ builtinEnv = do
           pure $! if loc v1 == loc v2 then true else false
       ),
       ( "cons",
-        proc2 \v1 v2 -> do
-          r1 <- liftIO (newIORef v1)
-          r2 <- liftIO (newIORef v2)
-          alloc $ Pair r1 r2
+        proc2 cons
       ),
       ( "car",
         proc1 (expectPair >=> liftIO . readIORef . fst)
@@ -142,6 +140,9 @@ builtinEnv = do
           (_, r2) <- expectPair v1
           liftIO $ modifyIORef' r2 (const v2)
           pure undef
+      ),
+      ( "apply",
+        builtin apply
       )
     ]
 
