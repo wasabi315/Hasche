@@ -18,6 +18,7 @@ library
                     , MiniScheme.Evaluator.Builtins
                     , MiniScheme.Evaluator.Eval
                     , MiniScheme.Driver
+                    , Hasche.AST
     build-depends:    base ^>=4.14.1.0
                     , text
                     , megaparsec
