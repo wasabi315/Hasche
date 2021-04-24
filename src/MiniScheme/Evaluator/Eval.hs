@@ -166,9 +166,9 @@ apply :: MonadEval m => Value' m -> [Value' m] -> m (Value' m)
 apply f xs =
   case val f of
     Proc env' func -> func env' xs
-    Cont cont -> do
-      when (length xs /= 1) do
-        throw (EvalError "illegal number of arguments")
-      cont (head xs)
+    Cont cont ->
+      case xs of
+        [x] -> cont x
+        _ -> throw (EvalError "illegal number of arguments")
     _ -> do
       throw (EvalError "expect procedure or continuation")
