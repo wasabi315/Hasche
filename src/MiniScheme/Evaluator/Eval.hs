@@ -56,6 +56,10 @@ evalExp env (AST.If p t e) = do
   evalExp env p >>= \v -> case val v of
     Bool False -> maybe (pure undef) (evalExp env) e
     _ -> evalExp env t
+evalExp env (AST.App e es) = do
+  v <- evalExp env e
+  vs <- traverse (evalExp env) es
+  apply v vs
 evalExp env (AST.Lam (AST.Args args rest) body) = do
   let bindArgs _ [] [] Nothing = pure ()
       bindArgs env' vs [] (Just a) = foldrM cons empty vs >>= bind env' a
@@ -116,10 +120,6 @@ evalExp env (AST.LetRec mname binds body) = do
 evalExp env (AST.Begin es) = do
   vs <- traverse (evalExp env) es
   pure $! maybe empty NE.last (NE.nonEmpty vs)
-evalExp env (AST.App e es) = do
-  v <- evalExp env e
-  vs <- traverse (evalExp env) es
-  apply v vs
 
 evalBody :: MonadEval m => Env m -> AST.Body -> m (Value' m)
 evalBody env (AST.Body ds es) = do
