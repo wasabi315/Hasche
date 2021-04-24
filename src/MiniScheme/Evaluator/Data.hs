@@ -98,8 +98,8 @@ prettyValue = fmap ($ "") . prettyValue' . val
       Bool b -> pure . showString $ if b then "#t" else "#f"
       Str s -> pure $ shows s
       Sym s -> pure $ shows s
-      Proc _ _ -> pure $ showString "<procedure>"
-      Cont _ -> pure $ showString "<continuation>"
+      Proc _ _ -> pure $ showString "#<procedure>"
+      Cont _ -> pure $ showString "#<continuation>"
 
     prettyPairs = \case
       Pair r1 r2 -> do

@@ -20,6 +20,7 @@ import Control.Monad.Cont
 import Data.Foldable
 import Data.IORef
 import Data.Text qualified as Text
+import Data.Text.IO qualified as Text
 import GHC.IO.Unsafe
 import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Eval
@@ -154,6 +155,15 @@ builtinEnv = do
           callCC \k -> do
             c <- alloc $ Cont k
             apply v [c]
+      ),
+      ( "display",
+        proc1 \v ->
+          undef <$ liftIO case val v of
+            Str str -> Text.putStr str
+            _ -> prettyValue v >>= putStr
+      ),
+      ( "newline",
+        proc0 $ undef <$ liftIO (putStrLn "")
       )
     ]
 
@@ -165,6 +175,12 @@ builtin f = alloc $ Proc emptyEnv (const f)
 emptyEnv :: Env n
 emptyEnv = unsafePerformIO rootEnv
 {-# NOINLINE emptyEnv #-}
+
+proc0 :: (MonadIO m, MonadEval n) => n (Value' n) -> m (Value' n)
+proc0 x =
+  builtin \case
+    [] -> x
+    _ -> throw (EvalError "illegal number of arguments")
 
 proc1 :: (MonadIO m, MonadEval n) => (Value' n -> n (Value' n)) -> m (Value' n)
 proc1 f =
