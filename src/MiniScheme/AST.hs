@@ -41,10 +41,7 @@ data Exp
   | App Exp [Exp]
   deriving (Show)
 
-data Args
-  = Args [Id]
-  | ArgsRest [Id] Id
-  | Rest Id
+data Args = Args [Id] (Maybe Id)
   deriving (Show)
 
 data SExp

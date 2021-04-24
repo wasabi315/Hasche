@@ -56,25 +56,14 @@ evalExp env (AST.If p t e) = do
   evalExp env p >>= \v -> case val v of
     Bool False -> maybe (pure undef) (evalExp env) e
     _ -> evalExp env t
-evalExp env (AST.Lam args body) =
+evalExp env (AST.Lam (AST.Args args rest) body) = do
+  let bindArgs _ [] [] Nothing = pure ()
+      bindArgs env' vs [] (Just a) = foldrM cons empty vs >>= bind env' a
+      bindArgs env' (v : vs) (a : as) r = bind env' a v *> bindArgs env' vs as r
+      bindArgs _ _ _ _ = throw (EvalError "illegal number of arguments")
   alloc $ Proc env \env' vs -> do
-    let !lv = length vs
     env'' <- childEnv env'
-    case args of
-      AST.Args as -> do
-        let !la = length as
-        when (la /= lv) do
-          throw (EvalError "illegal number of arguments")
-        zipWithM_ (bind env'') as vs
-      AST.ArgsRest as a -> do
-        let !la = length as
-        when (la > lv) do
-          throw (EvalError "illegal number of arguments")
-        let (vs', vs'') = splitAt la vs
-        zipWithM_ (bind env'') as vs'
-        foldrM cons empty vs'' >>= bind env'' a
-      AST.Rest a -> do
-        foldrM cons empty vs >>= bind env'' a
+    bindArgs env'' vs args rest
     evalBody env'' body
 evalExp env (AST.Let mname binds body) = do
   env' <- childEnv env

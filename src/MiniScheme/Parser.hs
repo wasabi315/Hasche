@@ -75,10 +75,10 @@ procNameAndArgs =
   parens . choice $
     [ do
         (f NE.:| xs, i) <- try (improperList ident)
-        pure (f, AST.ArgsRest xs i),
+        pure (f, AST.Args xs (Just i)),
       do
         f : xs <- some ident
-        pure (f, AST.Args xs)
+        pure (f, AST.Args xs Nothing)
     ]
 
 exp :: Parser AST.Exp
@@ -141,10 +141,10 @@ nonAtomicExp =
 lamArgs :: Parser AST.Args
 lamArgs =
   choice
-    [ AST.Rest <$!> ident,
+    [ AST.Args [] . Just <$!> ident,
       parens . choice $
-        [ uncurry AST.ArgsRest . first NE.toList <$!> try (improperList ident),
-          AST.Args <$!> many ident
+        [ uncurry AST.Args . bimap NE.toList Just <$!> try (improperList ident),
+          flip AST.Args Nothing <$!> many ident
         ]
     ]
 
