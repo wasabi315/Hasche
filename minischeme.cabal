@@ -18,7 +18,8 @@ library
                     , MiniScheme.Evaluator.Builtins
                     , MiniScheme.Evaluator.Eval
                     , MiniScheme.Driver
-                    , Hasche.AST
+                    , Hasche.Object
+                    , Hasche.Format
                     , Hasche.Parser
     build-depends:    base ^>=4.14.1.0
                     , text

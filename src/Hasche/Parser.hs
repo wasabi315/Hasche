@@ -4,77 +4,80 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Hasche.Parser
-  ( Parser,
-    ParseError,
-    parseExpr,
+  ( parseExpr,
     parseNum,
+    ParseError,
   )
 where
 
 import Control.Monad
 import Data.Char
+import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Void
-import Hasche.AST qualified as AST
+import Hasche.Object qualified as Obj
 import Text.Megaparsec hiding (ParseError)
 import Text.Megaparsec.Char hiding (space)
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Megaparsec.Error.Builder
 
-type Parser = Parsec Void Text
+type Parser = ParsecT Void Text IO
 
 type ParseError = ParseErrorBundle Text Void
 
-parseExpr :: FilePath -> Text -> Either ParseError [AST.Expr]
-parseExpr = parse (space *> many expr <* eof)
+parseExpr :: FilePath -> Text -> IO (Either ParseError [Obj.ObjRef m])
+parseExpr = runParserT (space *> many expr <* eof)
 
-parseNum :: Text -> Maybe Integer
-parseNum = parseMaybe (num <* eof)
+parseNum :: Text -> IO (Maybe (Obj.ObjRef m))
+parseNum t =
+  either (const Nothing) Just <$> runParserT (num <* eof) "" t
 
-expr :: Parser AST.Expr
+expr :: Parser (Obj.ObjRef m)
 expr =
   choice
-    [ AST.Atom <$!> atom,
+    [ atom,
       quoted,
       pairs
     ]
 
-quoted :: Parser AST.Expr
+quoted :: Parser (Obj.ObjRef m)
 quoted = do
   _ <- char '\''
   e <- expr
-  pure
-    $! AST.Atom (AST.Ident "quote")
-    `AST.Pair` e
-    `AST.Pair` AST.Atom AST.Empty
+  q <- Obj.sym "quote"
+  Obj.cons q =<< Obj.cons e Obj.empty
 
-pairs :: Parser AST.Expr
+pairs :: Parser (Obj.ObjRef m)
 pairs = between (symbol "(") (symbol ")") do
   es <- some expr
   e <-
     choice
-      [ AST.Atom AST.Empty <$ lookAhead (char ')'),
+      [ Obj.empty <$ lookAhead (char ')'),
         symbol "." *> expr
       ]
-  pure $! foldr AST.Pair e es
+  foldrM Obj.cons e es
 
-atom :: Parser AST.Atom
+atom :: Parser (Obj.ObjRef m)
 atom =
   choice
-    [ AST.Empty <$ symbol "()",
-      AST.Bool True <$ symbol "#t",
-      AST.Bool False <$ symbol "#f",
-      AST.Num <$!> lexeme num,
-      AST.Str <$!> lexeme str,
-      AST.Ident <$!> lexeme ident
+    [ Obj.empty <$ symbol "()",
+      Obj.true <$ symbol "#true",
+      Obj.true <$ symbol "#t",
+      Obj.false <$ symbol "#false",
+      Obj.false <$ symbol "#f",
+      try (lexeme num),
+      lexeme str,
+      lexeme ident
     ]
 
-num :: Parser Integer
-num = L.signed (pure ()) L.decimal
+num :: Parser (Obj.ObjRef m)
+num = L.signed (pure ()) L.decimal >>= Obj.num
 
-str :: Parser Text
-str = between (char '"') (char '"') (Text.concat <$!> many str')
+str :: Parser (Obj.ObjRef m)
+str =
+  between (char '"') (char '"') (Text.concat <$!> many str')
+    >>= Obj.str
   where
     str' =
       choice
@@ -90,15 +93,15 @@ str = between (char '"') (char '"') (Text.concat <$!> many str')
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
-ident :: Parser Text
-ident = try $ do
+ident :: Parser (Obj.ObjRef m)
+ident = try do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->
     isAlphaNum c
       || c `elem` ("!$%&*+-./<=>?@^_" :: String)
   if x == "."
     then parseError (err o (utoks x))
-    else pure x
+    else Obj.sym x
 
 space :: Parser ()
 space =
