@@ -21,11 +21,10 @@ import Data.Foldable
 import Data.IORef
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
-import GHC.IO.Unsafe
 import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Eval
 import MiniScheme.Evaluator.Monad
-import MiniScheme.Parser (parseNum)
+import MiniScheme.Parser
 
 builtinEnv :: (MonadIO m, MonadThrow m, MonadEval n) => m (Env n)
 builtinEnv = do
@@ -34,55 +33,54 @@ builtinEnv = do
   traverse_
     (\(i, v) -> bind env i =<< v)
     [ ( "null?",
-        proc1 \v -> case val v of
+        proc1 \_ v -> case val v of
           Empty -> pure true
           _ -> pure false
       ),
       ( "pair?",
-        proc1 \v -> case val v of
+        proc1 \_ v -> case val v of
           Pair _ _ -> pure true
           _ -> pure false
       ),
       ( "number?",
-        proc1 \v -> case val v of
+        proc1 \_ v -> case val v of
           Num _ -> pure true
           _ -> pure false
       ),
       ( "boolean?",
-        proc1 \v -> case val v of
+        proc1 \_ v -> case val v of
           Bool _ -> pure true
           _ -> pure false
       ),
       ( "string?",
-        proc1 \v -> case val v of
+        proc1 \_ v -> case val v of
           Str _ -> pure true
           _ -> pure false
       ),
       ( "symbol?",
-        proc1 \v -> case val v of
+        proc1 \_ v -> case val v of
           Sym _ -> pure true
           _ -> pure false
       ),
       ( "procedure?",
-        proc1 \v -> case val v of
+        proc1 \_ v -> case val v of
           Proc _ _ -> pure true
+          Prim _ -> pure true
           _ -> pure false
       ),
       ("+", numFold (+) 0),
       ("*", numFold (*) 1),
       ( "-",
-        builtin
-          ( traverse expectNum >=> \case
-              [] -> throw (EvalError "expect at least one number")
-              n : ns -> alloc $ Num (n - sum ns)
-          )
+        builtin . const $
+          traverse expectNum >=> \case
+            [] -> throw (EvalError "expect at least one number")
+            n : ns -> alloc $ Num (n - sum ns)
       ),
       ( "/",
-        builtin
-          ( traverse expectNum >=> \case
-              [] -> throw (EvalError "expect at least one number")
-              n : ns -> alloc $ Num (n `div` product ns)
-          )
+        builtin . const $
+          traverse expectNum >=> \case
+            [] -> throw (EvalError "expect at least one number")
+            n : ns -> alloc $ Num (n `div` product ns)
       ),
       ("=", numBinPred (==)),
       (">", numBinPred (>)),
@@ -90,117 +88,119 @@ builtinEnv = do
       ("<", numBinPred (<)),
       ("<=", numBinPred (<=)),
       ( "string-append",
-        builtin (traverse expectStr >=> alloc . Str . Text.concat)
+        builtin . const $ traverse expectStr >=> alloc . Str . Text.concat
       ),
       ( "string->number",
-        proc1
-          ( expectStr >=> \s -> case parseNum s of
-              Just n -> alloc $ Num n
-              Nothing -> throw (EvalError "Failed to convert string->number")
-          )
+        proc1 . const $
+          expectStr >=> \s -> case parseNum s of
+            Just n -> alloc $ Num n
+            Nothing -> throw (EvalError "Failed to convert string->number")
       ),
       ( "number->string",
-        proc1 (expectNum >=> alloc . Str . Text.pack . show)
+        proc1 . const $ expectNum >=> alloc . Str . Text.pack . show
       ),
       ( "string->symbol",
-        proc1
-          ( expectStr >=> \s -> do
-              symtbl <- ask
-              strToSym symtbl s
-          )
+        proc1 . const $
+          expectStr >=> \s -> do
+            symtbl <- ask
+            strToSym symtbl s
       ),
       ( "symbol->string",
-        proc1 (expectSym >=> alloc . Str . symToStr)
+        proc1 . const $ expectSym >=> alloc . Str . symToStr
       ),
       ( "eq?",
-        proc2 \x y -> bool <$!> isEq x y
+        proc2 \_ x y -> bool <$!> isEq x y
       ),
       ( "eqv?",
-        proc2 \x y -> bool <$!> isEqv x y
+        proc2 \_ x y -> bool <$!> isEqv x y
       ),
       ( "equal?",
-        proc2 \x y -> bool <$!> isEqual x y
+        proc2 \_ x y -> bool <$!> isEqual x y
       ),
       ( "cons",
-        proc2 cons
+        proc2 . const $ cons
       ),
       ( "car",
-        proc1 (expectPair >=> liftIO . readIORef . fst)
+        proc1 . const $ expectPair >=> liftIO . readIORef . fst
       ),
       ( "cdr",
-        proc1 (expectPair >=> liftIO . readIORef . snd)
+        proc1 . const $ expectPair >=> liftIO . readIORef . snd
       ),
       ( "set-car!",
-        proc2 \v1 v2 -> do
+        proc2 \_ v1 v2 -> do
           (r1, _) <- expectPair v1
           liftIO $ modifyIORef' r1 (const v2)
           pure undef
       ),
       ( "set-cdr!",
-        proc2 \v1 v2 -> do
+        proc2 \_ v1 v2 -> do
           (_, r2) <- expectPair v1
           liftIO $ modifyIORef' r2 (const v2)
           pure undef
       ),
+      -- FIXME: hacky
+      ( "eval",
+        proc1 \env' v -> do
+          liftIO (prettyValue v) >>= \str -> case parseProg "" (Text.pack str) of
+            Right [p] -> eval env' [p]
+            Left err -> throw (EvalError . Text.pack $ displayException err)
+            _ -> throw (EvalError "failed to eval")
+      ),
       ( "apply",
-        builtin \case
+        builtin \env' -> \case
           [] -> throw (EvalError "illegal number of arguments")
           [_] -> throw (EvalError "illegal number of arguments")
           (f : xs) -> do
             args <- (init xs ++) <$!> pairToList (last xs)
-            apply f args
+            apply env' f args
       ),
       ( "call/cc",
-        proc1 \v -> do
+        proc1 \env' v -> do
           callCC \k -> do
             c <- alloc $ Cont k
-            apply v [c]
+            apply env' v [c]
       ),
       ( "display",
-        proc1 \v ->
+        proc1 \_ v ->
           undef <$ liftIO case val v of
             Str str -> Text.putStr str
             _ -> prettyValue v >>= putStr
       ),
       ( "newline",
-        proc0 $ undef <$ liftIO (putStrLn "")
+        proc0 . const $ undef <$ liftIO (putStrLn "")
       )
     ]
 
   pure env
 
-builtin :: MonadIO m => ([Value' n] -> n (Value' n)) -> m (Value' n)
-builtin f = alloc $ Proc emptyEnv (const f)
+builtin :: MonadIO m => (Env n -> [Value' n] -> n (Value' n)) -> m (Value' n)
+builtin f = alloc $ Prim f
 
-emptyEnv :: Env n
-emptyEnv = unsafePerformIO rootEnv
-{-# NOINLINE emptyEnv #-}
-
-proc0 :: (MonadIO m, MonadEval n) => n (Value' n) -> m (Value' n)
-proc0 x =
-  builtin \case
-    [] -> x
+proc0 :: (MonadIO m, MonadEval n) => (Env n -> n (Value' n)) -> m (Value' n)
+proc0 f =
+  builtin \env -> \case
+    [] -> f env
     _ -> throw (EvalError "illegal number of arguments")
 
-proc1 :: (MonadIO m, MonadEval n) => (Value' n -> n (Value' n)) -> m (Value' n)
+proc1 :: (MonadIO m, MonadEval n) => (Env n -> Value' n -> n (Value' n)) -> m (Value' n)
 proc1 f =
-  builtin \case
-    [v] -> f v
+  builtin \env -> \case
+    [v] -> f env v
     _ -> throw (EvalError "illegal number of arguments")
 
-proc2 :: (MonadIO m, MonadEval n) => (Value' n -> Value' n -> n (Value' n)) -> m (Value' n)
+proc2 :: (MonadIO m, MonadEval n) => (Env n -> Value' n -> Value' n -> n (Value' n)) -> m (Value' n)
 proc2 f =
-  builtin \case
-    [v1, v2] -> f v1 v2
+  builtin \env -> \case
+    [v1, v2] -> f env v1 v2
     _ -> throw (EvalError "illegal number of arguments")
 
 numFold :: (MonadIO m, MonadEval n) => (Number -> Number -> Number) -> Number -> m (Value' n)
 numFold f n =
-  builtin $ traverse expectNum >=> alloc . Num . foldl' f n
+  builtin . const $ traverse expectNum >=> alloc . Num . foldl' f n
 
 numBinPred :: (MonadIO m, MonadEval n) => (Number -> Number -> Bool) -> m (Value' n)
 numBinPred f =
-  proc2 \v1 v2 -> do
+  proc2 \_ v1 v2 -> do
     n1 <- expectNum v1
     n2 <- expectNum v2
     pure $! if f n1 n2 then true else false

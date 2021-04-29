@@ -59,7 +59,7 @@ evalExp env (AST.If p t e) = do
 evalExp env (AST.App e es) = do
   v <- evalExp env e
   vs <- traverse (evalExp env) es
-  apply v vs
+  apply env v vs
 evalExp env (AST.Lam (AST.Args args rest) body) = do
   let bindArgs _ [] [] Nothing = pure ()
       bindArgs env' vs [] (Just a) = foldrM cons empty vs >>= bind env' a
@@ -151,9 +151,10 @@ cons v1 v2 = do
   r2 <- liftIO (newIORef v2)
   alloc $ Pair r1 r2
 
-apply :: MonadEval m => Value' m -> [Value' m] -> m (Value' m)
-apply f xs =
+apply :: MonadEval m => Env m -> Value' m -> [Value' m] -> m (Value' m)
+apply env f xs =
   case val f of
+    Prim prim -> prim env xs
     Proc env' func -> func env' xs
     Cont cont ->
       case xs of

@@ -82,6 +82,7 @@ data ValueKind m
   | Num Number
   | Str Text
   | Sym Symbol
+  | Prim (Env m -> [Value' m] -> m (Value' m))
   | Proc (Env m) (Env m -> [Value' m] -> m (Value' m))
   | Cont (Value' m -> m (Value' m))
 
@@ -98,6 +99,7 @@ prettyValue = fmap ($ "") . prettyValue' . val
       Bool b -> pure . showString $ if b then "#t" else "#f"
       Str s -> pure $ shows s
       Sym s -> pure $ shows s
+      Prim _ -> pure $ showString "#<primitive>"
       Proc _ _ -> pure $ showString "#<procedure>"
       Cont _ -> pure $ showString "#<continuation>"
 
