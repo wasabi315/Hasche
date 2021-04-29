@@ -9,8 +9,8 @@
 module MiniScheme.Evaluator.Data
   ( Value,
     alloc,
-    val,
-    loc,
+    deref,
+    (.=),
     undef,
     empty,
     true,
@@ -40,6 +40,7 @@ where
 import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Functor
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.IORef
@@ -48,19 +49,20 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.IO.Unsafe
 import MiniScheme.AST qualified as AST
-import System.Mem.StableName
 import Prelude hiding (lookup)
 
-data Value m = Value (ValueKind m) (StableName (ValueKind m))
-
-val :: Value m -> ValueKind m
-val (Value v _) = v
-
-loc :: Value m -> StableName (ValueKind m)
-loc (Value _ l) = l
+type Value m = IORef (ValueKind m)
 
 alloc :: MonadIO m => ValueKind n -> m (Value n)
-alloc v = Value v <$!> liftIO (makeStableName v)
+alloc = liftIO . newIORef
+
+deref :: MonadIO m => Value n -> m (ValueKind n)
+deref = liftIO . readIORef
+
+(.=) :: MonadIO m => Value n -> ValueKind n -> m ()
+r .= x = liftIO $ modifyIORef' r (const x)
+
+infix 0 .=
 
 undef, empty, true, false :: Value m
 undef = unsafePerformIO (alloc Undef)
@@ -75,7 +77,7 @@ false = unsafePerformIO (alloc (Bool False))
 data ValueKind m
   = Undef
   | Empty
-  | Pair (IORef (Value m)) (IORef (Value m))
+  | Pair (Value m) (Value m)
   | Bool Bool
   | Num Number
   | Str Text
@@ -87,7 +89,7 @@ data ValueKind m
 type Number = AST.Number
 
 prettyValue :: Value m -> IO String
-prettyValue = fmap ($ "") . prettyValue' . val
+prettyValue v = deref v >>= prettyValue' <&> ($ "")
   where
     prettyValue' = \case
       Undef -> pure $ showString "#<undef>"
@@ -103,54 +105,60 @@ prettyValue = fmap ($ "") . prettyValue' . val
 
     prettyPairs = \case
       Pair r1 r2 -> do
-        s1 <- readIORef r1 >>= prettyValue' . val
-        readIORef r2 >>= \v -> case val v of
+        s1 <- deref r1 >>= prettyValue'
+        deref r2 >>= \case
           Empty -> pure s1
           pair@(Pair _ _) -> (\s2 -> s1 . showChar ' ' . s2) <$> prettyPairs pair
           v' -> (\s2 -> s1 . showString " . " . s2) <$> prettyValue' v'
-      v -> prettyValue' v
+      v' -> prettyValue' v'
 
-expectNum :: MonadThrow m => Value m -> m Integer
-expectNum v = case val v of
-  Num n -> pure n
-  Undef -> throw (EvalError "undefined value evaluated")
-  _ -> throw (EvalError "expect number")
+expectNum :: (MonadIO m, MonadThrow m) => Value m -> m Integer
+expectNum v =
+  deref v >>= \case
+    Num n -> pure n
+    Undef -> throw (EvalError "undefined value evaluated")
+    _ -> throw (EvalError "expect number")
 
-expectPair :: MonadThrow m => Value m -> m (IORef (Value m), IORef (Value m))
-expectPair v = case val v of
-  Pair r1 r2 -> pure (r1, r2)
-  Undef -> throw (EvalError "undefined value evaluated")
-  _ -> throw (EvalError "expect pair")
+expectPair :: (MonadIO m, MonadThrow m) => Value m -> m (Value m, Value m)
+expectPair v =
+  deref v >>= \case
+    Pair r1 r2 -> pure (r1, r2)
+    Undef -> throw (EvalError "undefined value evaluated")
+    _ -> throw (EvalError "expect pair")
 
-expectBool :: MonadThrow m => Value m -> m Bool
-expectBool v = case val v of
-  Bool b -> pure b
-  Undef -> throw (EvalError "undefined value evaluated")
-  _ -> throw (EvalError "expect boolean")
+expectBool :: (MonadIO m, MonadThrow m) => Value m -> m Bool
+expectBool v =
+  deref v >>= \case
+    Bool b -> pure b
+    Undef -> throw (EvalError "undefined value evaluated")
+    _ -> throw (EvalError "expect boolean")
 
-expectStr :: MonadThrow m => Value m -> m Text
-expectStr v = case val v of
-  Str s -> pure s
-  Undef -> throw (EvalError "undefined value evaluated")
-  _ -> throw (EvalError "expect boolean")
+expectStr :: (MonadIO m, MonadThrow m) => Value m -> m Text
+expectStr v =
+  deref v >>= \case
+    Str s -> pure s
+    Undef -> throw (EvalError "undefined value evaluated")
+    _ -> throw (EvalError "expect boolean")
 
-expectSym :: MonadThrow m => Value m -> m Symbol
-expectSym v = case val v of
-  Sym s -> pure s
-  Undef -> throw (EvalError "undefined value evaluated")
-  _ -> throw (EvalError "expect boolean")
+expectSym :: (MonadIO m, MonadThrow m) => Value m -> m Symbol
+expectSym v =
+  deref v >>= \case
+    Sym s -> pure s
+    Undef -> throw (EvalError "undefined value evaluated")
+    _ -> throw (EvalError "expect boolean")
 
 expectProc ::
-  MonadThrow m =>
+  (MonadIO m, MonadThrow m) =>
   Value m ->
   m (Env m, Env m -> [Value m] -> m (Value m))
-expectProc v = case val v of
-  Proc e f -> pure (e, f)
-  Undef -> throw (EvalError "undefined value evaluated")
-  _ -> throw (EvalError "expect boolean")
+expectProc v =
+  deref v >>= \case
+    Proc e f -> pure (e, f)
+    Undef -> throw (EvalError "undefined value evaluated")
+    _ -> throw (EvalError "expect boolean")
 
 data Env m = Env
-  { binds :: BasicHashTable AST.Id (IORef (Value m)),
+  { binds :: BasicHashTable AST.Id (Value m),
     parent :: Maybe (Env m)
   }
 
@@ -160,7 +168,7 @@ rootEnv = flip Env Nothing <$!> liftIO HT.new
 childEnv :: MonadIO m => Env n -> m (Env n)
 childEnv parent = flip Env (Just parent) <$!> liftIO HT.new
 
-lookup :: (MonadIO m, MonadThrow m) => Env n -> AST.Id -> m (IORef (Value n))
+lookup :: (MonadIO m, MonadThrow m) => Env n -> AST.Id -> m (Value n)
 lookup env i = lookup' env
   where
     lookup' Env {..} = do
@@ -174,14 +182,15 @@ bind :: (MonadIO m, MonadThrow m) => Env n -> AST.Id -> Value n -> m ()
 bind Env {..} i v = do
   declared <- liftIO $ HT.mutateIO binds i \case
     Just v' -> pure (Just v', True)
-    Nothing -> (,False) . Just <$> newIORef v
+    Nothing -> pure (Just v, False)
   when declared do
     throw (EvalError "identifier already declared")
 
 set :: (MonadIO m, MonadThrow m) => Env n -> AST.Id -> Value n -> m ()
 set e i v = do
   ref <- lookup e i
-  liftIO $ modifyIORef' ref (const v)
+  x <- deref v
+  ref .= x
 
 newtype Symbol = Symbol Text
 

@@ -18,7 +18,6 @@ import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.Cont
 import Data.Foldable
-import Data.IORef
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
 import MiniScheme.Evaluator.Data
@@ -33,40 +32,47 @@ builtinEnv = do
   traverse_
     (\(i, v) -> bind env i =<< v)
     [ ( "null?",
-        proc1 \_ v -> case val v of
-          Empty -> pure true
-          _ -> pure false
+        proc1 \_ v ->
+          deref v >>= \case
+            Empty -> pure true
+            _ -> pure false
       ),
       ( "pair?",
-        proc1 \_ v -> case val v of
-          Pair _ _ -> pure true
-          _ -> pure false
+        proc1 \_ v ->
+          deref v >>= \case
+            Pair _ _ -> pure true
+            _ -> pure false
       ),
       ( "number?",
-        proc1 \_ v -> case val v of
-          Num _ -> pure true
-          _ -> pure false
+        proc1 \_ v ->
+          deref v >>= \case
+            Num _ -> pure true
+            _ -> pure false
       ),
       ( "boolean?",
-        proc1 \_ v -> case val v of
-          Bool _ -> pure true
-          _ -> pure false
+        proc1 \_ v ->
+          deref v >>= \case
+            Bool _ -> pure true
+            _ -> pure false
       ),
       ( "string?",
-        proc1 \_ v -> case val v of
-          Str _ -> pure true
-          _ -> pure false
+        proc1 \_ v ->
+          deref v >>= \case
+            Str _ -> pure true
+            _ -> pure false
       ),
       ( "symbol?",
-        proc1 \_ v -> case val v of
-          Sym _ -> pure true
-          _ -> pure false
+        proc1 \_ v ->
+          deref v >>= \case
+            Sym _ -> pure true
+            _ -> pure false
       ),
       ( "procedure?",
-        proc1 \_ v -> case val v of
-          Proc _ _ -> pure true
-          Prim _ -> pure true
-          _ -> pure false
+        proc1 \_ v ->
+          deref v >>= \case
+            Proc _ _ -> pure true
+            Prim _ -> pure true
+            _ -> pure false
       ),
       ("+", numFold (+) 0),
       ("*", numFold (*) 1),
@@ -119,21 +125,23 @@ builtinEnv = do
         proc2 . const $ cons
       ),
       ( "car",
-        proc1 . const $ expectPair >=> liftIO . readIORef . fst
+        proc1 . const $ fmap fst . expectPair
       ),
       ( "cdr",
-        proc1 . const $ expectPair >=> liftIO . readIORef . snd
+        proc1 . const $ fmap snd . expectPair
       ),
       ( "set-car!",
         proc2 \_ v1 v2 -> do
           (r1, _) <- expectPair v1
-          liftIO $ modifyIORef' r1 (const v2)
+          v <- deref v2
+          r1 .= v
           pure undef
       ),
       ( "set-cdr!",
         proc2 \_ v1 v2 -> do
           (_, r2) <- expectPair v1
-          liftIO $ modifyIORef' r2 (const v2)
+          v <- deref v2
+          r2 .= v
           pure undef
       ),
       -- FIXME: hacky
@@ -160,9 +168,9 @@ builtinEnv = do
       ),
       ( "display",
         proc1 \_ v ->
-          undef <$ liftIO case val v of
-            Str str -> Text.putStr str
-            _ -> prettyValue v >>= putStr
+          deref v >>= \case
+            Str str -> undef <$ liftIO (Text.putStr str)
+            _ -> undef <$ liftIO (prettyValue v >>= putStr)
       ),
       ( "newline",
         proc0 . const $ undef <$ liftIO (putStrLn "")
@@ -207,32 +215,30 @@ bool :: Bool -> Value m
 bool b = if b then true else false
 
 isEq :: MonadIO m => Value m -> Value m -> m Bool
-isEq v w = pure $! loc v == loc w
+isEq v w = pure $! v == w
 
 isEqv :: MonadIO m => Value m -> Value m -> m Bool
-isEqv x y = case (val x, val y) of
-  (Num n1, Num n2) -> pure $! n1 == n2
-  _ -> isEq x y
+isEqv x y = do
+  v <- deref x
+  w <- deref y
+  case (v, w) of
+    (Num n1, Num n2) -> pure $! n1 == n2
+    _ -> isEq x y
 
 isEqual :: MonadIO m => Value m -> Value m -> m Bool
-isEqual x y = case (val x, val y) of
-  (Pair r1 r2, Pair r3 r4) -> do
-    v1 <- liftIO (readIORef r1)
-    v3 <- liftIO (readIORef r3)
-    isEqual v1 v3 >>= \case
-      False -> pure False
-      True -> do
-        v2 <- liftIO (readIORef r2)
-        v4 <- liftIO (readIORef r4)
-        isEqual v2 v4
-  _ -> isEqv x y
+isEqual x y = do
+  v1 <- deref x
+  v2 <- deref y
+  case (v1, v2) of
+    (Pair r1 r2, Pair r3 r4) ->
+      liftM2 (&&) (isEqual r1 r3) (isEqual r2 r4)
+    _ -> isEqv x y
 
 pairToList :: MonadIO m => Value m -> m [Value m]
-pairToList v = case val v of
-  Empty -> pure []
-  Pair r1 r2 -> do
-    v1 <- liftIO (readIORef r1)
-    v2 <- liftIO (readIORef r2)
-    vs <- pairToList v2
-    pure $! v1 : vs
-  _ -> pure [v]
+pairToList v =
+  deref v >>= \case
+    Empty -> pure []
+    Pair r1 r2 -> do
+      vs <- pairToList r2
+      pure $! r1 : vs
+    _ -> pure [v]

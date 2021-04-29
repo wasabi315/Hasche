@@ -16,7 +16,6 @@ import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable
-import Data.IORef
 import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as Text
 import Data.Text.IO qualified as Text
@@ -53,7 +52,7 @@ evalExp env (AST.Set i e) = do
   set env i v
   pure v
 evalExp env (AST.If p t e) = do
-  evalExp env p >>= \v -> case val v of
+  evalExp env p >>= deref >>= \case
     Bool False -> maybe (pure undef) (evalExp env) e
     _ -> evalExp env t
 evalExp env (AST.App e es) = do
@@ -132,7 +131,7 @@ evalAtom _ AST.Empty = pure empty
 evalAtom _ (AST.Num n) = alloc (Num n)
 evalAtom _ (AST.Bool b) = alloc (Bool b)
 evalAtom _ (AST.Str s) = alloc (Str s)
-evalAtom env (AST.Id i) = lookup env i >>= liftIO . readIORef
+evalAtom env (AST.Id i) = lookup env i
 
 evalSExp :: MonadEval m => AST.SExp -> m (Value m)
 evalSExp (AST.SAtom AST.Empty) = pure empty
@@ -146,14 +145,11 @@ evalSExp (AST.SPair e1 e2) = do
   cons v1 v2
 
 cons :: MonadEval m => Value m -> Value m -> m (Value m)
-cons v1 v2 = do
-  r1 <- liftIO (newIORef v1)
-  r2 <- liftIO (newIORef v2)
-  alloc $ Pair r1 r2
+cons v1 v2 = alloc $ Pair v1 v2
 
 apply :: MonadEval m => Env m -> Value m -> [Value m] -> m (Value m)
 apply env f xs =
-  case val f of
+  deref f >>= \case
     Prim prim -> prim env xs
     Proc env' func -> func env' xs
     Cont cont ->
