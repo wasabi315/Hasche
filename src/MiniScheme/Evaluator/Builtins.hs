@@ -171,50 +171,50 @@ builtinEnv = do
 
   pure env
 
-builtin :: MonadIO m => (Env n -> [Value' n] -> n (Value' n)) -> m (Value' n)
+builtin :: MonadIO m => (Env n -> [Value n] -> n (Value n)) -> m (Value n)
 builtin f = alloc $ Prim f
 
-proc0 :: (MonadIO m, MonadEval n) => (Env n -> n (Value' n)) -> m (Value' n)
+proc0 :: (MonadIO m, MonadEval n) => (Env n -> n (Value n)) -> m (Value n)
 proc0 f =
   builtin \env -> \case
     [] -> f env
     _ -> throw (EvalError "illegal number of arguments")
 
-proc1 :: (MonadIO m, MonadEval n) => (Env n -> Value' n -> n (Value' n)) -> m (Value' n)
+proc1 :: (MonadIO m, MonadEval n) => (Env n -> Value n -> n (Value n)) -> m (Value n)
 proc1 f =
   builtin \env -> \case
     [v] -> f env v
     _ -> throw (EvalError "illegal number of arguments")
 
-proc2 :: (MonadIO m, MonadEval n) => (Env n -> Value' n -> Value' n -> n (Value' n)) -> m (Value' n)
+proc2 :: (MonadIO m, MonadEval n) => (Env n -> Value n -> Value n -> n (Value n)) -> m (Value n)
 proc2 f =
   builtin \env -> \case
     [v1, v2] -> f env v1 v2
     _ -> throw (EvalError "illegal number of arguments")
 
-numFold :: (MonadIO m, MonadEval n) => (Number -> Number -> Number) -> Number -> m (Value' n)
+numFold :: (MonadIO m, MonadEval n) => (Number -> Number -> Number) -> Number -> m (Value n)
 numFold f n =
   builtin . const $ traverse expectNum >=> alloc . Num . foldl' f n
 
-numBinPred :: (MonadIO m, MonadEval n) => (Number -> Number -> Bool) -> m (Value' n)
+numBinPred :: (MonadIO m, MonadEval n) => (Number -> Number -> Bool) -> m (Value n)
 numBinPred f =
   proc2 \_ v1 v2 -> do
     n1 <- expectNum v1
     n2 <- expectNum v2
     pure $! if f n1 n2 then true else false
 
-bool :: Bool -> Value' m
+bool :: Bool -> Value m
 bool b = if b then true else false
 
-isEq :: MonadIO m => Value' m -> Value' m -> m Bool
+isEq :: MonadIO m => Value m -> Value m -> m Bool
 isEq v w = pure $! loc v == loc w
 
-isEqv :: MonadIO m => Value' m -> Value' m -> m Bool
+isEqv :: MonadIO m => Value m -> Value m -> m Bool
 isEqv x y = case (val x, val y) of
   (Num n1, Num n2) -> pure $! n1 == n2
   _ -> isEq x y
 
-isEqual :: MonadIO m => Value' m -> Value' m -> m Bool
+isEqual :: MonadIO m => Value m -> Value m -> m Bool
 isEqual x y = case (val x, val y) of
   (Pair r1 r2, Pair r3 r4) -> do
     v1 <- liftIO (readIORef r1)
@@ -227,7 +227,7 @@ isEqual x y = case (val x, val y) of
         isEqual v2 v4
   _ -> isEqv x y
 
-pairToList :: MonadIO m => Value' m -> m [Value' m]
+pairToList :: MonadIO m => Value m -> m [Value m]
 pairToList v = case val v of
   Empty -> pure []
   Pair r1 r2 -> do

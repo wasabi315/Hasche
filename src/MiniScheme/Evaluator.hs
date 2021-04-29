@@ -9,7 +9,7 @@
 
 module MiniScheme.Evaluator
   ( newEvaluator,
-    Value,
+    SomeValue,
     pretty,
     EvalError,
   )
@@ -22,7 +22,7 @@ import MiniScheme.Evaluator.Data
 import MiniScheme.Evaluator.Eval
 import MiniScheme.Evaluator.Monad
 
-newEvaluator :: IO ([AST.Prog] -> IO (Either EvalError Value))
+newEvaluator :: IO ([AST.Prog] -> IO (Either EvalError SomeValue))
 newEvaluator = do
   env <- builtinEnv
 
@@ -31,7 +31,7 @@ newEvaluator = do
       (runEvaluator (eval env prog) (pure . Right . Value))
       (pure . Left)
 
-data Value = forall m. Value (Value' m)
+data SomeValue = forall m. Value (Value m)
 
-pretty :: Value -> IO String
+pretty :: SomeValue -> IO String
 pretty (Value v) = prettyValue v

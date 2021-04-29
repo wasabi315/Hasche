@@ -27,7 +27,7 @@ instance Show Error where
 
 instance Exception Error
 
-newInterpreter :: FilePath -> IO (Text -> IO (Either Error Value))
+newInterpreter :: FilePath -> IO (Text -> IO (Either Error SomeValue))
 newInterpreter path = do
   eval <- newEvaluator
 

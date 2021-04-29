@@ -26,10 +26,10 @@ import MiniScheme.Evaluator.Monad
 import MiniScheme.Parser
 import Prelude hiding (lookup)
 
-eval :: MonadEval m => Env m -> [AST.Prog] -> m (Value' m)
+eval :: MonadEval m => Env m -> [AST.Prog] -> m (Value m)
 eval env = fmap (maybe empty NE.last . NE.nonEmpty) . traverse (evalProg env)
 
-evalProg :: MonadEval m => Env m -> AST.Prog -> m (Value' m)
+evalProg :: MonadEval m => Env m -> AST.Prog -> m (Value m)
 evalProg env (AST.Exp e) = evalExp env e
 evalProg env (AST.Def def) = evalDef env def
 evalProg env (AST.Load path) = do
@@ -39,13 +39,13 @@ evalProg env (AST.Load path) = do
     Left err -> throw (EvalError (Text.pack (show err)))
     Right prog -> eval env prog
 
-evalDef :: MonadEval m => Env m -> AST.Def -> m (Value' m)
+evalDef :: MonadEval m => Env m -> AST.Def -> m (Value m)
 evalDef env (AST.Const i e) = do
   v <- evalExp env e
   bind env i v
   pure empty
 
-evalExp :: MonadEval m => Env m -> AST.Exp -> m (Value' m)
+evalExp :: MonadEval m => Env m -> AST.Exp -> m (Value m)
 evalExp env (AST.Atom a) = evalAtom env a
 evalExp _ (AST.Quote e) = evalSExp e
 evalExp env (AST.Set i e) = do
@@ -121,20 +121,20 @@ evalExp env (AST.Begin es) = do
   vs <- traverse (evalExp env) es
   pure $! maybe empty NE.last (NE.nonEmpty vs)
 
-evalBody :: MonadEval m => Env m -> AST.Body -> m (Value' m)
+evalBody :: MonadEval m => Env m -> AST.Body -> m (Value m)
 evalBody env (AST.Body ds es) = do
   traverse_ (evalDef env) ds
   vs <- traverse (evalExp env) es
   pure $! NE.last vs
 
-evalAtom :: MonadEval m => Env m -> AST.Atom -> m (Value' m)
+evalAtom :: MonadEval m => Env m -> AST.Atom -> m (Value m)
 evalAtom _ AST.Empty = pure empty
 evalAtom _ (AST.Num n) = alloc (Num n)
 evalAtom _ (AST.Bool b) = alloc (Bool b)
 evalAtom _ (AST.Str s) = alloc (Str s)
 evalAtom env (AST.Id i) = lookup env i >>= liftIO . readIORef
 
-evalSExp :: MonadEval m => AST.SExp -> m (Value' m)
+evalSExp :: MonadEval m => AST.SExp -> m (Value m)
 evalSExp (AST.SAtom AST.Empty) = pure empty
 evalSExp (AST.SAtom (AST.Num n)) = alloc (Num n)
 evalSExp (AST.SAtom (AST.Bool b)) = alloc (Bool b)
@@ -145,13 +145,13 @@ evalSExp (AST.SPair e1 e2) = do
   v2 <- evalSExp e2
   cons v1 v2
 
-cons :: MonadEval m => Value' m -> Value' m -> m (Value' m)
+cons :: MonadEval m => Value m -> Value m -> m (Value m)
 cons v1 v2 = do
   r1 <- liftIO (newIORef v1)
   r2 <- liftIO (newIORef v2)
   alloc $ Pair r1 r2
 
-apply :: MonadEval m => Env m -> Value' m -> [Value' m] -> m (Value' m)
+apply :: MonadEval m => Env m -> Value m -> [Value m] -> m (Value m)
 apply env f xs =
   case val f of
     Prim prim -> prim env xs
