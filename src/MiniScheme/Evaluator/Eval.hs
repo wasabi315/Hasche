@@ -139,7 +139,7 @@ evalSExp (AST.SAtom AST.Empty) = pure empty
 evalSExp (AST.SAtom (AST.Num n)) = alloc (Num n)
 evalSExp (AST.SAtom (AST.Bool b)) = alloc (Bool b)
 evalSExp (AST.SAtom (AST.Str s)) = alloc (Str s)
-evalSExp (AST.SAtom (AST.Id i)) = ask >>= flip strToSym i
+evalSExp (AST.SAtom (AST.Id i)) = strToSym i
 evalSExp (AST.SPair e1 e2) = do
   v1 <- evalSExp e1
   v2 <- evalSExp e2

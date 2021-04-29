@@ -31,8 +31,6 @@ module MiniScheme.Evaluator.Data
     bind,
     set,
     Symbol,
-    SymTable,
-    newSymTable,
     strToSym,
     symToStr,
     EvalError (..),
@@ -190,17 +188,19 @@ newtype Symbol = Symbol Text
 instance Show Symbol where
   show (Symbol s) = Text.unpack s
 
-newtype SymTable m = SymTable (BasicHashTable Text (Value' m))
+type SymTable m = BasicHashTable Text (Value' m)
 
-newSymTable :: MonadIO m => m (SymTable n)
-newSymTable = SymTable <$> liftIO HT.new
+_symtbl :: SymTable m
+_symtbl = unsafePerformIO HT.new
+{-# NOINLINE _symtbl #-}
 
 symToStr :: Symbol -> Text
 symToStr (Symbol name) = name
 
-strToSym :: MonadIO m => SymTable n -> Text -> m (Value' n)
-strToSym (SymTable tbl) t = liftIO do
-  HT.mutateIO tbl t \case
+-- may create new symbol
+strToSym :: MonadIO m => Text -> m (Value' n)
+strToSym t = liftIO do
+  HT.mutateIO _symtbl t \case
     Nothing -> do
       s <- alloc (Sym (Symbol t))
       pure (Just s, s)

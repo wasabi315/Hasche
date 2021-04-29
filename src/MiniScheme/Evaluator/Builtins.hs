@@ -101,9 +101,7 @@ builtinEnv = do
       ),
       ( "string->symbol",
         proc1 . const $
-          expectStr >=> \s -> do
-            symtbl <- ask
-            strToSym symtbl s
+          expectStr >=> strToSym
       ),
       ( "symbol->string",
         proc1 . const $ expectSym >=> alloc . Str . symToStr
