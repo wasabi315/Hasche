@@ -3,37 +3,39 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Hasche.Parser
-  ( parseExpr,
-    parseNum,
-    ParseError,
+module Hasche.Reader
+  ( readSExprList,
+    readSExpr,
+    readSNum,
+    ReadError,
   )
 where
 
 import Control.Monad
 import Data.Char
-import Data.Foldable
 import Data.Text (Text)
-import Data.Text qualified as Text
+import Data.Text qualified as T
 import Data.Void
-import Hasche.Object qualified as Obj
-import Text.Megaparsec hiding (ParseError)
+import Hasche.SExpr
+import Text.Megaparsec
 import Text.Megaparsec.Char hiding (space)
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Megaparsec.Error.Builder
 
-type Parser = ParsecT Void Text IO
+type Parser = Parsec Void Text
 
-type ParseError = ParseErrorBundle Text Void
+type ReadError = ParseErrorBundle Text Void
 
-parseExpr :: FilePath -> Text -> IO (Either ParseError [Obj.ObjRef m])
-parseExpr = runParserT (space *> many expr <* eof)
+readSExprList :: FilePath -> Text -> Either ReadError [SExpr]
+readSExprList = parse (space *> many expr <* eof)
 
-parseNum :: Text -> IO (Maybe (Obj.ObjRef m))
-parseNum t =
-  either (const Nothing) Just <$> runParserT (num <* eof) "" t
+readSExpr :: Text -> Either ReadError SExpr
+readSExpr = parse (space *> expr <* eof) ""
 
-expr :: Parser (Obj.ObjRef m)
+readSNum :: Text -> Maybe SExpr
+readSNum = parseMaybe num
+
+expr :: Parser SExpr
 expr =
   choice
     [ atom,
@@ -41,43 +43,38 @@ expr =
       pairs
     ]
 
-quoted :: Parser (Obj.ObjRef m)
+quoted :: Parser SExpr
 quoted = do
   _ <- char '\''
   e <- expr
-  q <- Obj.sym "quote"
-  Obj.cons q =<< Obj.cons e Obj.empty
+  pure $! SList [SSym "quote", e] Nothing
 
-pairs :: Parser (Obj.ObjRef m)
+pairs :: Parser SExpr
 pairs = between (symbol "(") (symbol ")") do
   es <- some expr
-  e <-
-    choice
-      [ Obj.empty <$ lookAhead (char ')'),
-        symbol "." *> expr
-      ]
-  foldrM Obj.cons e es
+  choice
+    [ SList es Nothing <$ lookAhead (char ')'),
+      SList es . Just <$!> (symbol "." *> expr)
+    ]
 
-atom :: Parser (Obj.ObjRef m)
+atom :: Parser SExpr
 atom =
   choice
-    [ Obj.empty <$ symbol "()",
-      Obj.true <$ symbol "#true",
-      Obj.true <$ symbol "#t",
-      Obj.false <$ symbol "#false",
-      Obj.false <$ symbol "#f",
+    [ SList [] Nothing <$ symbol "()",
+      SBool True <$ symbol "#true",
+      SBool True <$ symbol "#t",
+      SBool False <$ symbol "#false",
+      SBool False <$ symbol "#f",
       try (lexeme num),
       lexeme str,
       lexeme ident
     ]
 
-num :: Parser (Obj.ObjRef m)
-num = L.signed (pure ()) L.decimal >>= Obj.num
+num :: Parser SExpr
+num = SNum <$!> L.signed (pure ()) L.decimal
 
-str :: Parser (Obj.ObjRef m)
-str =
-  between (char '"') (char '"') (Text.concat <$!> many str')
-    >>= Obj.str
+str :: Parser SExpr
+str = SStr <$!> between (char '"') (char '"') (T.concat <$!> many str')
   where
     str' =
       choice
@@ -93,7 +90,7 @@ str =
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
-ident :: Parser (Obj.ObjRef m)
+ident :: Parser SExpr
 ident = try do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->
@@ -101,7 +98,7 @@ ident = try do
       || c `elem` ("!$%&*+-./<=>?@^_" :: String)
   if x == "."
     then parseError (err o (utoks x))
-    else Obj.sym x
+    else pure $! SSym x
 
 space :: Parser ()
 space =

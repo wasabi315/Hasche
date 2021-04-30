@@ -18,9 +18,15 @@ library
                     , MiniScheme.Evaluator.Builtins
                     , MiniScheme.Evaluator.Eval
                     , MiniScheme.Driver
+                    , Hasche.SExpr
+                    , Hasche.Reader
                     , Hasche.Object
                     , Hasche.Format
-                    , Hasche.Parser
+                    , Hasche.Eval
+                    , Hasche.Builtins.Primitives
+                    , Hasche.Builtins.SpecialForms
+                    , Hasche.Builtins
+                    , Hasche.Driver
     build-depends:    base ^>=4.14.1.0
                     , text
                     , megaparsec

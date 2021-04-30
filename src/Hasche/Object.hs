@@ -16,6 +16,7 @@ module Hasche.Object
     str,
     sym,
     cons,
+    syn,
     prim,
     func,
     cont,
@@ -26,6 +27,7 @@ module Hasche.Object
     pattern Str,
     pattern Sym,
     pattern Cons,
+    pattern Syn,
     pattern Prim,
     pattern Func,
     pattern Cont,
@@ -33,17 +35,21 @@ module Hasche.Object
     deref,
     (.=),
     Env,
+    rootEnv,
+    childEnv,
     lookup,
     bind,
   )
 where
 
+import Control.Monad
 import Control.Monad.IO.Class
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.IORef
 import Data.Text (Text)
 import GHC.IO.Unsafe
+import Hasche.SExpr
 import Prelude hiding (lookup)
 
 -- data types
@@ -58,8 +64,9 @@ data Object m
   | Str_ Text
   | Sym_ Text
   | Cons_ (ObjRef m) (ObjRef m)
-  | Prim_ (Env m -> ObjRef m -> m (ObjRef m))
-  | Func_ (Env m) (Env m -> ObjRef m -> m (ObjRef m))
+  | Syn_ (Env m -> [SExpr] -> m (ObjRef m))
+  | Prim_ (Env m -> [ObjRef m] -> m (ObjRef m))
+  | Func_ (Env m) (Env m -> [ObjRef m] -> m (ObjRef m))
   | Cont_ (ObjRef m -> m (ObjRef m))
 
 type SymTable m = BasicHashTable Text (ObjRef m)
@@ -105,10 +112,13 @@ sym s = liftIO $
 cons :: MonadIO m => ObjRef n -> ObjRef n -> m (ObjRef n)
 cons car cdr = liftIO . newIORef $! Cons_ car cdr
 
-prim :: MonadIO m => (Env n -> ObjRef n -> n (ObjRef n)) -> m (ObjRef n)
+syn :: MonadIO m => (Env n -> [SExpr] -> n (ObjRef n)) -> m (ObjRef n)
+syn f = liftIO . newIORef $! Syn_ f
+
+prim :: MonadIO m => (Env n -> [ObjRef n] -> n (ObjRef n)) -> m (ObjRef n)
 prim f = liftIO . newIORef $! Prim_ f
 
-func :: MonadIO m => Env n -> (Env n -> ObjRef n -> n (ObjRef n)) -> m (ObjRef n)
+func :: MonadIO m => Env n -> (Env n -> [ObjRef n] -> n (ObjRef n)) -> m (ObjRef n)
 func e f = liftIO . newIORef $! Func_ e f
 
 cont :: MonadIO m => (ObjRef n -> n (ObjRef n)) -> m (ObjRef n)
@@ -135,16 +145,19 @@ pattern Sym s <- Sym_ s
 pattern Cons :: ObjRef m -> ObjRef m -> Object m
 pattern Cons r1 r2 <- Cons_ r1 r2
 
-pattern Prim :: (Env m -> ObjRef m -> m (ObjRef m)) -> Object m
+pattern Syn :: (Env m -> [SExpr] -> m (ObjRef m)) -> Object m
+pattern Syn f <- Syn_ f
+
+pattern Prim :: (Env m -> [ObjRef m] -> m (ObjRef m)) -> Object m
 pattern Prim f <- Prim_ f
 
-pattern Func :: Env m -> (Env m -> ObjRef m -> m (ObjRef m)) -> Object m
+pattern Func :: Env m -> (Env m -> [ObjRef m] -> m (ObjRef m)) -> Object m
 pattern Func e f <- Func_ e f
 
 pattern Cont :: (ObjRef m -> m (ObjRef m)) -> Object m
 pattern Cont k <- Cont_ k
 
-{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Cons, Prim, Func, Cont #-}
+{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Cons, Syn, Prim, Func, Cont #-}
 
 -- utils
 
@@ -157,6 +170,12 @@ r .= v = liftIO (modifyIORef' r (const v))
 infix 0 .=
 
 -- Env methods
+
+rootEnv :: MonadIO m => m (Env n)
+rootEnv = flip Env Nothing <$!> liftIO HT.new
+
+childEnv :: MonadIO m => Env n -> m (Env n)
+childEnv env = flip Env (Just env) <$!> liftIO HT.new
 
 lookup :: MonadIO m => Env n -> Text -> m (Maybe (ObjRef n))
 lookup e i = lookup' e

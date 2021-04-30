@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeApplications #-}
 
 module Hasche.Format
-  ( inspect,
+  ( write,
     display,
   )
 where
@@ -23,8 +23,8 @@ import Data.Text.Lazy.Builder qualified as TB
 import Data.Text.Lazy.Builder.Int qualified as TB
 import Hasche.Object qualified as Obj
 
-inspect :: MonadIO m => Obj.ObjRef n -> m Text
-inspect = format inspectOption
+write :: MonadIO m => Obj.ObjRef n -> m Text
+write = format writeOption
 
 display :: MonadIO m => Obj.ObjRef n -> m Text
 display = format displayOption
@@ -37,6 +37,7 @@ data FormatOption m = FormatOption
     str :: Text -> Builder,
     sym :: Text -> Builder,
     cons :: forall n. (Obj.ObjRef n -> m Builder) -> Obj.ObjRef n -> Obj.ObjRef n -> m Builder,
+    syn :: Builder,
     prim :: Builder,
     func :: Builder,
     cont :: Builder
@@ -53,13 +54,15 @@ format FormatOption {..} obj = TL.toStrict . TB.toLazyText <$!> format' obj
         Obj.Num n -> pure (num n)
         Obj.Str s -> pure (str s)
         Obj.Sym s -> pure (sym s)
-        Obj.Cons r1 r2 -> cons format' r1 r2
+        Obj.Cons r1 r2 -> formatCons r1 r2
+        Obj.Syn _ -> pure syn
         Obj.Prim _ -> pure prim
         Obj.Func _ _ -> pure func
         Obj.Cont _ -> pure cont
+    formatCons = cons format'
 
-inspectOption :: MonadIO m => FormatOption m
-inspectOption =
+writeOption :: MonadIO m => FormatOption m
+writeOption =
   FormatOption
     { undef = "#<undef>",
       empty = "()",
@@ -78,6 +81,7 @@ inspectOption =
                 _ ->
                   ((t1 <> " . ") <>) <$!> fmt r2
         (\t -> TB.singleton '(' <> t <> TB.singleton ')') <$!> loop car cdr,
+      syn = "#<syntax>",
       prim = "#<primitive>",
       func = "#<procedure>",
       cont = "#<continuation>"
@@ -85,7 +89,7 @@ inspectOption =
 
 displayOption :: forall m. MonadIO m => FormatOption m
 displayOption =
-  (inspectOption @m)
+  (writeOption @m)
     { str = TB.fromText,
       cons = \fmt car cdr -> do
         o1 <- Obj.deref car
@@ -94,5 +98,5 @@ displayOption =
           (Obj.Sym "quote", Obj.Cons r1 _) ->
             (TB.singleton '\'' <>) <$!> fmt r1
           _ ->
-            cons inspectOption fmt car cdr
+            cons writeOption fmt car cdr
     }
