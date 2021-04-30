@@ -1,10 +1,10 @@
 cradle:
   cabal:
     - path: "src"
-      component: "lib:minischeme"
+      component: "lib:hasche"
 
     - path: "app/Main.hs"
-      component: "minischeme:exe:minischeme"
+      component: "hasche:exe:hasche"
 
     - path: "test"
-      component: "minischeme:test:minischeme-test"
+      component: "hasche:test:hasche-test"

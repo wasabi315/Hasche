@@ -5,12 +5,12 @@
 
 module Main where
 
-import Control.Monad
+import Control.Exception
 import Data.Foldable
 import Data.Function
-import Data.String
-import Data.Text.IO qualified as Text
-import MiniScheme.Driver as MS
+import Data.Text qualified as T
+import Data.Text.IO qualified as T
+import Hasche.Driver as H
 import Options.Applicative
 import System.Exit
 import System.IO
@@ -40,8 +40,8 @@ parserInfo =
 
 exec :: FilePath -> IO ()
 exec path = do
-  txt <- Text.readFile path
-  interp <- MS.newInterpreter path
+  txt <- T.readFile path
+  interp <- H.newInterpreter path
   interp txt >>= \case
     Right _ -> exitSuccess
     Left err -> hPrint stderr err *> exitFailure
@@ -51,7 +51,7 @@ repl = do
   hSetBuffering stdout NoBuffering
   putStrLn headerText
 
-  interp <- MS.newInterpreter "<interactive>"
+  interp <- H.newInterpreter "<interactive>"
 
   fix \loop -> do
     putStr promptText
@@ -61,15 +61,18 @@ repl = do
         | txt == ":help" || txt == ":?" -> putStrLn helpText >> loop
         | txt == ":quit" || txt == ":q" -> pure ()
         | otherwise ->
-          interp (fromString txt)
-            >>= either print (pretty >=> putStrLn)
-            >> loop
+          do
+            res <- interp (T.pack txt)
+            case res of
+              Left err -> putStrLn (displayException err)
+              Right obj -> H.display obj >>= T.putStrLn
+            loop
 
   exitSuccess
 
 headerText :: String
 headerText =
-  "Welcome to the Mini-Scheme REPL!\n\
+  "Welcome to the Hasche REPL!\n\
   \enter :? for help\n"
 
 helpText :: String
@@ -81,4 +84,4 @@ helpText =
   \:quit, :q       exit REPL\n"
 
 promptText :: String
-promptText = "minischeme> "
+promptText = "hasche> "

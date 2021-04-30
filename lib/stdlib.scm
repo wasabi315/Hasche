@@ -42,3 +42,6 @@
 (define (cadr x) (car (cdr x)))
 (define (cdar x) (cdr (car x)))
 (define (cddr x) (cdr (cdr x)))
+
+; display
+(define (newline) (display "\n"))

@@ -1,4 +1,4 @@
-# Mini-Scheme
+# Hasche
 A Mini-Scheme interpreter written in Haskell
 
 ## Mini-Scheme Specification
@@ -79,6 +79,5 @@ load
 ```
 
 ### Optional features
-- [ ] Tail call optimization
 - [ ] Macros
-- [ ] call/cc
+- [x] call/cc
