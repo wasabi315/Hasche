@@ -1,4 +1,4 @@
-# Revision history for minischeme
+# Revision history for hasche
 
 ## 0.1.0.0 -- YYYY-mm-dd
 
