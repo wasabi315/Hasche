@@ -8,7 +8,7 @@ module Hasche.Eval
   ( MonadEval,
     EvalM,
     runEvalM,
-    EvalError (..),
+    Error (..),
     eval,
     evalMany,
   )
@@ -21,6 +21,7 @@ import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as T
 import Hasche.Object
+import Hasche.Reader
 import Hasche.SExpr
 import Prelude hiding (lookup)
 
@@ -39,10 +40,13 @@ runEvalM = runContT
 
 -- Errors
 
-newtype EvalError = EvalError Text
+data Error
+  = ReadError ReadError
+  | EvalError Text
   deriving (Show)
 
-instance Exception EvalError where
+instance Exception Error where
+  displayException (ReadError err) = displayException err
   displayException (EvalError err) = T.unpack err
 
 -- Evaluation

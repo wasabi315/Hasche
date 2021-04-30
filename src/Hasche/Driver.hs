@@ -20,26 +20,17 @@ import Hasche.Format qualified as Fmt
 import Hasche.Object
 import Hasche.Reader
 
-data Error
-  = RError ReadError
-  | EError EvalError
-  deriving (Show)
-
-instance Exception Error where
-  displayException (RError err) = displayException err
-  displayException (EError err) = displayException err
-
 newInterpreter :: FilePath -> IO (Text -> IO (Either Error SomeObj))
 newInterpreter fp = do
   env <- builtinEnv
 
   let run txt =
         case readSExprList fp txt of
-          Left err -> pure (Left (RError err))
+          Left err -> pure (Left (ReadError err))
           Right prog -> do
             catch
               (runEvalM (evalMany env prog) (pure . Right . Obj))
-              (pure . Left . EError)
+              (pure . Left)
 
   -- load standard library
   _ <- run "(load \"lib/stdlib.scm\")"

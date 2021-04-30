@@ -222,7 +222,7 @@ primLoad =
     expectStr o >>= \fp -> do
       txt <- liftIO (T.readFile (T.unpack fp))
       case readSExprList (T.unpack fp) txt of
-        Left err -> throw (EvalError $! T.pack $ displayException err)
+        Left err -> throw (ReadError err)
         Right prog -> evalMany env prog
 
 primExit :: (MonadIO m, MonadEval n) => m (ObjRef n)
