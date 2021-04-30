@@ -80,7 +80,13 @@ writeOption =
                   ((t1 <> TB.singleton ' ') <>) <$!> loop r3 r4
                 _ ->
                   ((t1 <> " . ") <>) <$!> fmt r2
-        (\t -> TB.singleton '(' <> t <> TB.singleton ')') <$!> loop car cdr,
+        o1 <- Obj.deref car
+        o2 <- Obj.deref cdr
+        case (o1, o2) of
+          (Obj.Sym "quote", Obj.Cons r1 _) ->
+            (TB.singleton '\'' <>) <$!> fmt r1
+          _ ->
+            (\t -> TB.singleton '(' <> t <> TB.singleton ')') <$!> loop car cdr,
       syn = "#<syntax>",
       prim = "#<primitive>",
       func = "#<procedure>",
@@ -90,13 +96,5 @@ writeOption =
 displayOption :: forall m. MonadIO m => FormatOption m
 displayOption =
   (writeOption @m)
-    { str = TB.fromText,
-      cons = \fmt car cdr -> do
-        o1 <- Obj.deref car
-        o2 <- Obj.deref cdr
-        case (o1, o2) of
-          (Obj.Sym "quote", Obj.Cons r1 _) ->
-            (TB.singleton '\'' <>) <$!> fmt r1
-          _ ->
-            cons writeOption fmt car cdr
+    { str = TB.fromText
     }
