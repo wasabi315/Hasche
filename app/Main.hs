@@ -72,7 +72,7 @@ repl = do
 
 headerText :: String
 headerText =
-  "Welcome to the Mini-Scheme REPL!\n\
+  "Welcome to the Hasche REPL!\n\
   \enter :? for help\n"
 
 helpText :: String
@@ -84,4 +84,4 @@ helpText =
   \:quit, :q       exit REPL\n"
 
 promptText :: String
-promptText = "minischeme> "
+promptText = "hasche> "
