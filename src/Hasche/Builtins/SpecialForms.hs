@@ -1,5 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -7,7 +6,7 @@
 module Hasche.Builtins.SpecialForms where
 
 import Control.Exception.Safe
-import Control.Monad.Cont hiding (cont)
+import Control.Monad.Cont
 import Data.Foldable
 import Data.Maybe
 import Data.Text (Text)
@@ -103,13 +102,14 @@ mkClosure = \env e b -> do
       bindArgs env ps mp os
     bindArgs _ _ _ _ = throw (EvalError "Arity Mismatch")
 
+    -- body : (define ...)* expression*
     isValidBody :: [SExpr] -> Bool
-    isValidBody = isValidBody' False
+    isValidBody = isJust . foldl' phi (Just True)
       where
-        isValidBody' _ [] = True
-        isValidBody' isExprPart (SList (SSym "define" : _) _ : es) =
-          not isExprPart && isValidBody' isExprPart es
-        isValidBody' _ (_ : es) = isValidBody' True es
+        phi Nothing _ = Nothing
+        phi (Just isDefPart) (SList (SSym "define" : _) _) =
+          if isDefPart then Just True else Nothing
+        phi _ _ = Just False
 
 -- SExpr -> Object
 toData :: MonadIO m => SExpr -> m (ObjRef n)

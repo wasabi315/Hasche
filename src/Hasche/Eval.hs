@@ -82,4 +82,4 @@ eval env (SList (x : xs) Nothing) = do
         [arg] -> k arg
         _ -> throw (EvalError "Arity mismatch")
     _ -> throw (EvalError "Could not apply")
-eval _ (SList _ _) = throw (EvalError "proper list required")
+eval _ (SList _ _) = throw (SynError "proper list required")
