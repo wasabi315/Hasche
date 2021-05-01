@@ -16,7 +16,7 @@ where
 
 import Control.Exception.Safe
 import Control.Monad.Cont
-import Data.List.NonEmpty qualified as NE
+import Data.Foldable.Extra
 import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -54,9 +54,7 @@ instance Exception Error where
 -- Evaluation
 
 evalMany :: MonadEval m => Env m -> [SExpr] -> m (ObjRef m)
-evalMany env es = do
-  os <- traverse (eval env) es
-  pure $! maybe undef NE.last (NE.nonEmpty os)
+evalMany env = traverseAndLast (eval env) undef
 
 eval :: MonadEval m => Env m -> SExpr -> m (ObjRef m)
 eval _ (SList [] Nothing) = pure empty

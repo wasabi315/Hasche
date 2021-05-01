@@ -75,10 +75,7 @@ mkClosure = \env e b -> do
       func env \env' args -> do
         env'' <- childEnv env'
         bindArgs env'' ps rest args
-        os <- traverse (eval env'') b
-        case os of
-          [] -> pure undef
-          _ -> pure $! last os
+        evalMany env'' b
   where
     extractParams :: SExpr -> Maybe ([Text], Maybe Text)
     extractParams (SSym s) = Just ([], Just s)

@@ -19,6 +19,7 @@ library
                     , Hasche.Builtins.SpecialForms
                     , Hasche.Builtins
                     , Hasche.Driver
+    other-modules:    Data.Foldable.Extra
     build-depends:    base ^>=4.14.1.0
                     , text
                     , megaparsec
