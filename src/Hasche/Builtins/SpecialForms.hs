@@ -22,7 +22,7 @@ synQuote :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synQuote = syn quote
   where
     quote _ [e] = toData e
-    quote _ _ = throw (EvalError "Illegal quote syntax")
+    quote _ _ = throw (SynError "Illegal quote syntax")
 
 synIf :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synIf = syn if_
@@ -37,7 +37,7 @@ synIf = syn if_
       case b of
         Bool False -> eval env e2
         _ -> eval env e1
-    if_ _ _ = throw (EvalError "Illegal if syntax")
+    if_ _ _ = throw (SynError "Illegal if syntax")
 
 synSet :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synSet = syn set
@@ -47,7 +47,7 @@ synSet = syn set
       lookup env s >>= \case
         Nothing -> throw (EvalError $! "Unbound identifier: " <> s)
         Just ref -> undef <$ (ref .= obj)
-    set _ _ = throw (EvalError "Illegal set! syntax")
+    set _ _ = throw (SynError "Illegal set! syntax")
 
 synDefine :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synDefine = syn define
@@ -58,21 +58,21 @@ synDefine = syn define
     define env (SList (SSym s : ps) mp : b) = do
       obj <- mkClosure env (SList ps mp) b
       undef <$ bind env s obj
-    define _ _ = throw (EvalError "Illegal define syntax")
+    define _ _ = throw (SynError "Illegal define syntax")
 
 synLambda :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synLambda = syn lambda
   where
     lambda env (ps : b) = mkClosure env ps b
-    lambda _ _ = throw (EvalError "Illegal lambda syntax")
+    lambda _ _ = throw (SynError "Illegal lambda syntax")
 
 mkClosure :: MonadEval m => Env m -> SExpr -> [SExpr] -> m (ObjRef m)
 mkClosure = \env e b -> do
   case extractParams e of
-    Nothing -> throw (EvalError "Illegal parameters")
+    Nothing -> throw (SynError "Illegal parameters")
     Just (ps, rest) -> do
       unless (isValidBody b) do
-        throw (EvalError "define cannot appear after expressions")
+        throw (SynError "define cannot appear after expressions")
       func env \env' args -> do
         env'' <- childEnv env'
         bindArgs env'' ps rest args

@@ -42,12 +42,14 @@ runEvalM = runContT
 
 data Error
   = ReadError ReadError
+  | SynError Text
   | EvalError Text
   deriving (Show)
 
 instance Exception Error where
-  displayException (ReadError err) = displayException err
-  displayException (EvalError err) = T.unpack err
+  displayException (ReadError err) = "READ ERROR: " ++ displayException err
+  displayException (SynError err) = "SYNTAX ERROR: " ++ T.unpack err
+  displayException (EvalError err) = "EVAL ERROR: " ++ T.unpack err
 
 -- Evaluation
 
