@@ -1,66 +1,42 @@
 # Hasche
-A Mini-Scheme interpreter written in Haskell
+An interpreter for a subset of Scheme written in Haskell
 
-## Mini-Scheme Specification
-Mini-Scheme is a subset of the programming language Scheme
+## Features
+- REPL Session
+- `call/cc`
+- Legacy macros
 
-### Syntax
-```
-Toplevel ::= Exp
-    | Define
-    | (load String)
-
-Define ::= (define Id Exp)
-    | (define (Id Id* [. Id]) Body)
-
-Exp ::= Const
-    | Id
-    | (lambda Arg Body)
-    | (Exp Exp*)
-    | (quote S-Exp)
-    | (set! Id Exp)
-    | (let [Id] Bindings Body)
-    | (let* [Id] Bindings Body)
-    | (letrec [Id] Bindings Body)
-    | (if Exp Exp [Exp])
-    | (cond (Exp Exp+)* [(else Exp+)])
-    | (and Exp*)
-    | (or Exp*)
-    | (begin Exp*)
-    | (do ((Id Exp Exp)*) (Exp Exp*) Body)
-
-Body ::= Define* Exp+
-
-Arg ::= Id
-    | (Id* [Id . Id])
-
-Bindings ::= ((Id Exp)*)
-
-S-Exp ::= Const
-    | Id
-    | (S-Exp* [S-Exp . S-Exp])
-
-Const ::= Num
-    | Bool
-    | String
-    | ()
-
-Num ::= number
-
-Bool ::= '#t'
-    | '#f'
-
-String ::= string surrounded by "
-
-Id ::= [0-9A-Za-z!$%&*+-./<=>?@^_]+
+## Usage
+### Build
+```sh
+$ cabal build
 ```
 
+### Run
+```sh
+$ cabal exec hasche exec -- programs/hello.scm
+# or
+$ cabal exec hasche repl
+```
+
+## List of available syntax, macros & functions
+### Special forms
+```
+define, define-macro, set!, lambda, if, quote, quasiquote, unquote, unquote-splicing
+```
+### Basic macros
+```
+begin, when, unless, and, or, cond
+```
 ### Basic functions
+```
+eval, apply
+```
 ```
 number?, +, -, *, /, =, <, <=, >, >=
 ```
 ```
-null?, pair?, list?, symbol?, car, cdr, cons, list, length, memq, last, append, set-car!, set-cdr!
+null?, pair?, list?, symbol?, car, cdr, cons, list, length, memq, last, append, set-car!, set-cdr!, caar, cadr, cdar, cddr, map, for-each
 ```
 ```
 boolean?, not
@@ -75,9 +51,12 @@ procedure?
 eq?, neq?, equal?
 ```
 ```
-load
+open-input-file, open-output-file, close-input-port, close-output-port, read, display, write, newline, load
 ```
-
-### Optional features
-- [ ] Macros
-- [x] call/cc
+```
+call/cc, call-with-current-continuation
+```
+### Lazy evaluation
+```
+delay, force
+```
