@@ -176,4 +176,4 @@ expectFunc :: (MonadIO m, MonadThrow m) => ObjRef n -> m (Env n, Env n -> [ObjRe
 expectFunc obj =
   deref obj >>= \case
     Func e f -> pure (e, f)
-    _ -> throw (EvalError "expect number")
+    _ -> throw (EvalError "expect closure")
