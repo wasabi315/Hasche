@@ -57,7 +57,7 @@
           (cons (f (car l)) (map f (cdr l)))
           (f l))))
 
-; input/output
+; Input / Output
 (define (newline) (display "\n"))
 
 (define (load path)
@@ -65,3 +65,7 @@
   (define es (read p))
   (close-input-port p)
   (for-each eval es))
+
+; Lazy
+(define-macro (delay x) `(lambda () ,x))
+(define (force x) (x))

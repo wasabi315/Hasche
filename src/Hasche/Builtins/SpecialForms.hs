@@ -3,6 +3,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Hasche.Builtins.SpecialForms where
@@ -107,7 +108,18 @@ synDefine = syn define
 synDefMacro :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synDefMacro = syn defMacro
   where
-    defMacro _ _ = undefined
+    defMacro env es = do
+      (s, o1) <- case es of
+        [SSym s, e] -> (s,) <$> eval env e
+        (SList (SSym s : ps) mp : b) -> (s,) <$> mkClosure env (SList ps mp) b
+        _ -> throw (SynError "Illegal define-macro syntax")
+      (env', transformer) <- expectFunc o1
+      o2 <- syn \env'' es' -> do
+        me <- traverse fromSExpr es' >>= transformer env' >>= toSExpr
+        case me of
+          Nothing -> throw (EvalError "Failed to expand macro")
+          Just e -> eval env'' e
+      undef <$ bind env s o2
 
 synLambda :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synLambda = syn lambda
@@ -157,3 +169,11 @@ mkClosure = \env e b -> do
         phi (Just isDefPart) (SList (SSym "define" : _) _) =
           if isDefPart then Just True else Nothing
         phi _ _ = Just False
+
+-- utils
+
+expectFunc :: (MonadIO m, MonadThrow m) => ObjRef n -> m (Env n, Env n -> [ObjRef n] -> n (ObjRef n))
+expectFunc obj =
+  deref obj >>= \case
+    Func e f -> pure (e, f)
+    _ -> throw (EvalError "expect number")
