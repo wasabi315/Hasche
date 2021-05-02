@@ -45,9 +45,15 @@ expr =
 
 quoted :: Parser SExpr
 quoted = do
-  _ <- char '\''
+  q <-
+    choice
+      [ SSym "quote" <$ char '\'',
+        SSym "quasiquote" <$ char '`',
+        SSym "unquote-splicing" <$ string ",@",
+        SSym "unquote" <$ char ','
+      ]
   e <- expr
-  pure $! SList [SSym "quote", e] Nothing
+  pure $! SList [q, e] Nothing
 
 pairs :: Parser SExpr
 pairs = between (symbol "(") (symbol ")") do
