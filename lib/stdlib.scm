@@ -67,6 +67,27 @@
   (for-each eval es))
 
 ; Basic Macros
+(define-macro (let binds . body)
+  (define vars (map car binds))
+  (define inits (map cadr binds))
+  `((lambda ,vars ,@body) ,@inits))
+(define-macro (let* binds . body)
+  (if (null? binds)
+      `(begin ,@body)
+      (begin
+        (define var (car (car binds)))
+        (define init (cadr (car binds)))
+        `(let ((,var ,init)) (let* ,(cdr binds) ,@body)))))
+
+(define-macro (cond . row)
+  (if (null? row)
+      `(begin)
+      (if (eq? (caar row) 'else)
+          `(begin ,@(cdar row))
+          `(if ,(caar row)
+               (begin ,@(cdar row))
+               (cond ,@(cdr row))))))
+
 (define-macro (begin . body) `((lambda () ,@body)))
 (define-macro (when test . body) `(if ,test (begin ,@body)))
 (define-macro (unless test . body) `(if (not ,test) (begin ,@body)))
