@@ -1,7 +1,7 @@
 cabal-version:      2.4
 name:               hasche
 version:            0.1.0.0
-synopsis:           A Mini-Scheme interpreter written in Haskell
+synopsis:           An interpreter for a subset of Scheme written in Haskell
 homepage:           https://github.com/wasabi315/hasche
 license:            NONE
 author:             wasabi315
