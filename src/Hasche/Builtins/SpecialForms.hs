@@ -3,10 +3,12 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Hasche.Builtins.SpecialForms where
 
 import Control.Exception.Safe
+import Control.Monad
 import Control.Monad.Cont
 import Data.Foldable
 import Data.Maybe
@@ -23,6 +25,48 @@ synQuote = syn quote
   where
     quote _ [e] = fromSExpr e
     quote _ _ = throw (SynError "Illegal quote syntax")
+
+synQuasiquote :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synQuasiquote = syn quasiquote
+  where
+    quasiquote env [e] = qq env e
+    quasiquote _ _ = throw (SynError "Illegal quasiquote syntax")
+
+    uqExpr (SList [SSym "unquote", e] Nothing) = Just e
+    uqExpr _ = Nothing
+    uqsExpr (SList [SSym "unquote-splicing", e] Nothing) = Just e
+    uqsExpr _ = Nothing
+
+    expectList o =
+      deref o >>= \case
+        Empty -> pure []
+        Cons car cdr -> (car :) <$!> expectList cdr
+        _ -> throw (EvalError "expect list")
+
+    qq :: MonadEval m => Env m -> SExpr -> m (ObjRef m)
+    qq _ (SBool b) = pure if b then true else false
+    qq _ (SNum n) = num n
+    qq _ (SStr s) = str s
+    qq _ (SSym s) = sym s
+    qq env (uqExpr -> Just e) = eval env e
+    qq _ (uqsExpr -> Just _) = throw (SynError "invalid unquote-splicing context")
+    qq env (SList es me) = do
+      os <- concat <$> traverse (qqs env) es
+      mo <- traverse (qq env) me
+      foldrM cons (fromMaybe empty mo) os
+
+    qqs env (uqsExpr -> Just e) = eval env e >>= expectList
+    qqs env e = pure <$!> qq env e
+
+synUnquote :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synUnquote = syn unquote
+  where
+    unquote _ _ = throw (SynError "unquote appeared outside quasiquote")
+
+synUnquoteSplicing :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synUnquoteSplicing = syn unquoteSplicing
+  where
+    unquoteSplicing _ _ = throw (SynError "unquote-splicing appeared outside quasiquote")
 
 synIf :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synIf = syn if_
@@ -59,6 +103,11 @@ synDefine = syn define
       obj <- mkClosure env (SList ps mp) b
       undef <$ bind env s obj
     define _ _ = throw (SynError "Illegal define syntax")
+
+synDefMacro :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synDefMacro = syn defMacro
+  where
+    defMacro _ _ = undefined
 
 synLambda :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synLambda = syn lambda

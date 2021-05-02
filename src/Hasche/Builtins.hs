@@ -17,7 +17,11 @@ builtinEnv = do
   e <- rootEnv
 
   bind e "define" =<< synDefine
+  bind e "define-macro" =<< synDefMacro
   bind e "quote" =<< synQuote
+  bind e "quasiquote" =<< synQuasiquote
+  bind e "unquote" =<< synUnquote
+  bind e "unquote-splicing" =<< synUnquoteSplicing
   bind e "if" =<< synIf
   bind e "set!" =<< synSet
   bind e "lambda" =<< synLambda
