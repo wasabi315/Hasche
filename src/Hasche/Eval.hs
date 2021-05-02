@@ -60,9 +60,9 @@ data Error
   deriving (Show)
 
 instance Exception Error where
-  displayException (ReadError err) = "READ ERROR: " ++ displayException err
-  displayException (SynError err) = "SYNTAX ERROR: " ++ T.unpack err
-  displayException (EvalError err) = "EVAL ERROR: " ++ T.unpack err
+  displayException (ReadError err) = "[READ ERROR]: " ++ displayException err
+  displayException (SynError err) = "[SYNTAX ERROR]: " ++ T.unpack err
+  displayException (EvalError err) = "[EVAL ERROR]: " ++ T.unpack err
 
 -- Evaluation
 
