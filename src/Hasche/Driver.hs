@@ -14,6 +14,7 @@ where
 
 import Control.Exception.Safe
 import Data.Text (Text)
+import Data.Text.IO qualified as T
 import Hasche.Builtins
 import Hasche.Eval
 import Hasche.Format qualified as Fmt
@@ -22,18 +23,18 @@ import Hasche.Reader
 
 newInterpreter :: FilePath -> IO (Text -> IO (Either Error SomeObj))
 newInterpreter fp = do
-  env <- builtinEnv
+  topEnv <- childEnv =<< builtinEnv
 
   let run txt =
         case readSExprList fp txt of
           Left err -> pure (Left (ReadError err))
           Right prog -> do
             catch
-              (runEvalM (evalMany env prog) (pure . Right . Obj))
+              (runEvalM (evalMany topEnv prog) topEnv (pure . Right . Obj))
               (pure . Left)
 
   -- load standard library
-  _ <- run "(load \"lib/stdlib.scm\")"
+  _ <- T.readFile "lib/stdlib.scm" >>= run
 
   pure run
 

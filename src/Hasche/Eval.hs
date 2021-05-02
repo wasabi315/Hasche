@@ -1,5 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -16,6 +18,7 @@ where
 
 import Control.Exception.Safe
 import Control.Monad.Cont
+import Control.Monad.Reader
 import Data.Foldable.Extra
 import Data.Maybe
 import Data.Text (Text)
@@ -28,15 +31,25 @@ import Prelude hiding (lookup)
 -- Monad Stack
 
 type MonadEval m =
-  ( MonadCont m,
+  ( MonadReader (Env m) m, -- for accessing top-level environment
+    MonadCont m, -- for call/cc
     MonadIO m,
     MonadThrow m
   )
 
-type EvalM r = ContT r IO
+newtype EvalM r a = EvalM (ReaderT (Env (EvalM r)) (ContT r IO) a)
+  deriving
+    ( Functor,
+      Applicative,
+      Monad,
+      MonadIO,
+      MonadThrow,
+      MonadCont,
+      MonadReader (Env (EvalM r))
+    )
 
-runEvalM :: EvalM r a -> (a -> IO r) -> IO r
-runEvalM = runContT
+runEvalM :: EvalM r a -> Env (EvalM r) -> (a -> IO r) -> IO r
+runEvalM (EvalM m) = runContT . runReaderT m
 
 -- Errors
 

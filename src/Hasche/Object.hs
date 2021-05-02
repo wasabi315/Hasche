@@ -15,6 +15,7 @@ module Hasche.Object
     num,
     str,
     sym,
+    port,
     cons,
     syn,
     prim,
@@ -26,6 +27,7 @@ module Hasche.Object
     pattern Num,
     pattern Str,
     pattern Sym,
+    pattern Port,
     pattern Cons,
     pattern Syn,
     pattern Prim,
@@ -34,6 +36,8 @@ module Hasche.Object
     ObjRef,
     deref,
     (.=),
+    fromSExpr,
+    toSExpr,
     Env,
     rootEnv,
     childEnv,
@@ -44,12 +48,15 @@ where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Foldable
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.IORef
+import Data.Maybe
 import Data.Text (Text)
 import GHC.IO.Unsafe
 import Hasche.SExpr
+import System.IO
 import Prelude hiding (lookup)
 
 -- data types
@@ -63,6 +70,7 @@ data Object m
   | Num_ Integer
   | Str_ Text
   | Sym_ Text
+  | Port_ Handle
   | Cons_ (ObjRef m) (ObjRef m)
   | Syn_ (Env m -> [SExpr] -> m (ObjRef m))
   | Prim_ (Env m -> [ObjRef m] -> m (ObjRef m))
@@ -109,6 +117,9 @@ sym s = liftIO $
       obj <- newIORef $! Sym_ s
       pure (Just obj, obj)
 
+port :: MonadIO m => Handle -> m (ObjRef n)
+port h = liftIO . newIORef $! Port_ h
+
 cons :: MonadIO m => ObjRef n -> ObjRef n -> m (ObjRef n)
 cons car cdr = liftIO . newIORef $! Cons_ car cdr
 
@@ -142,6 +153,9 @@ pattern Str s <- Str_ s
 pattern Sym :: Text -> Object m
 pattern Sym s <- Sym_ s
 
+pattern Port :: Handle -> Object m
+pattern Port h <- Port_ h
+
 pattern Cons :: ObjRef m -> ObjRef m -> Object m
 pattern Cons r1 r2 <- Cons_ r1 r2
 
@@ -157,9 +171,38 @@ pattern Func e f <- Func_ e f
 pattern Cont :: (ObjRef m -> m (ObjRef m)) -> Object m
 pattern Cont k <- Cont_ k
 
-{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Cons, Syn, Prim, Func, Cont #-}
+{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Prim, Func, Cont #-}
 
 -- utils
+
+toSExpr :: MonadIO m => ObjRef n -> m (Maybe SExpr)
+toSExpr r =
+  deref r >>= \case
+    Empty -> pure . Just $! SList [] Nothing
+    Bool b -> pure . Just $! SBool b
+    Num n -> pure . Just $! SNum n
+    Str s -> pure . Just $! SStr s
+    Sym s -> pure . Just $! SSym s
+    Cons car cdr -> do
+      mx <- toSExpr car
+      my <- toSExpr cdr
+      case (mx, my) of
+        (Just x, Just y) ->
+          case y of
+            SList es me -> pure . Just $! SList (x : es) me
+            _ -> pure . Just $! SList [] (Just y)
+        _ -> pure Nothing
+    _ -> pure Nothing
+
+fromSExpr :: MonadIO m => SExpr -> m (ObjRef n)
+fromSExpr (SBool b) = pure if b then true else false
+fromSExpr (SNum n) = num n
+fromSExpr (SStr s) = str s
+fromSExpr (SSym s) = sym s
+fromSExpr (SList es me) = do
+  os <- traverse fromSExpr es
+  mo <- traverse fromSExpr me
+  foldrM cons (fromMaybe empty mo) os
 
 deref :: MonadIO m => ObjRef n -> m (Object n)
 deref = liftIO . readIORef

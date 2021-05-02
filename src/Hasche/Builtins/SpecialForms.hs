@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -20,7 +21,7 @@ import Prelude hiding (lookup)
 synQuote :: (MonadIO m, MonadEval n) => m (ObjRef n)
 synQuote = syn quote
   where
-    quote _ [e] = toData e
+    quote _ [e] = fromSExpr e
     quote _ _ = throw (SynError "Illegal quote syntax")
 
 synIf :: (MonadIO m, MonadEval n) => m (ObjRef n)
@@ -107,14 +108,3 @@ mkClosure = \env e b -> do
         phi (Just isDefPart) (SList (SSym "define" : _) _) =
           if isDefPart then Just True else Nothing
         phi _ _ = Just False
-
--- SExpr -> Object
-toData :: MonadIO m => SExpr -> m (ObjRef n)
-toData (SBool b) = pure if b then true else false
-toData (SNum n) = num n
-toData (SStr s) = str s
-toData (SSym s) = sym s
-toData (SList es me) = do
-  os <- traverse toData es
-  mo <- traverse toData me
-  foldrM cons (fromMaybe empty mo) os

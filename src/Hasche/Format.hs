@@ -36,6 +36,7 @@ data FormatOption m = FormatOption
     num :: Integer -> Builder,
     str :: Text -> Builder,
     sym :: Text -> Builder,
+    port :: Builder,
     cons :: forall n. (Obj.ObjRef n -> m Builder) -> Obj.ObjRef n -> Obj.ObjRef n -> m Builder,
     syn :: Builder,
     prim :: Builder,
@@ -54,6 +55,7 @@ format FormatOption {..} obj = TL.toStrict . TB.toLazyText <$!> format' obj
         Obj.Num n -> pure (num n)
         Obj.Str s -> pure (str s)
         Obj.Sym s -> pure (sym s)
+        Obj.Port _ -> pure port
         Obj.Cons r1 r2 -> formatCons r1 r2
         Obj.Syn _ -> pure syn
         Obj.Prim _ -> pure prim
@@ -70,6 +72,7 @@ writeOption =
       num = TB.decimal,
       str = TB.fromString . show,
       sym = TB.fromText,
+      port = "#<port>",
       cons = \fmt car cdr -> do
         let loop r1 r2 = do
               t1 <- fmt r1

@@ -1,5 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -61,11 +61,14 @@ builtinEnv = do
 
   bind e "call/cc" =<< primCallCC
 
+  bind e "open-input-file" =<< primOpenInputFile
+  bind e "open-output-file" =<< primOpenOutputFile
+  bind e "close-input-port" =<< primCloseInputPort
+  bind e "close-output-port" =<< primCloseOutputPort
+  bind e "read" =<< primRead
   bind e "display" =<< primDisplay
   bind e "write" =<< primWrite
 
-  bind e "load" =<< primLoad
-
   bind e "exit" =<< primExit
 
-  childEnv e
+  pure e

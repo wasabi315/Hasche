@@ -43,5 +43,24 @@
 (define (cdar x) (cdr (car x)))
 (define (cddr x) (cdr (cdr x)))
 
-; display
+(define (for-each f l)
+  (if (null? l)
+      ((lambda ()))
+      (if (pair? l)
+          ((lambda () (f (car l)) (for-each f (cdr l))))
+          ((lambda () (f l) ((lambda ())))))))
+
+(define (map f l)
+  (if (null? l)
+      ()
+      (if (pair? l)
+          (cons (f (car l)) (map f (cdr l)))
+          (f l))))
+
+; input/output
 (define (newline) (display "\n"))
+
+(define (load path)
+  (define p (open-input-file path))
+  (define es (read p))
+  (for-each eval es))

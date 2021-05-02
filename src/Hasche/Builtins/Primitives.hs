@@ -1,14 +1,16 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Hasche.Builtins.Primitives where
 
 import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.Cont hiding (cont)
+import Control.Monad.Reader
 import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -19,11 +21,17 @@ import Hasche.Object
 import Hasche.Reader
 import Hasche.SExpr
 import System.Exit
+import System.IO
 
 -- primitive functions
 
 primEval :: (MonadIO m, MonadEval n) => m (ObjRef n)
-primEval = mkPrim1 \env o -> toCode o >>= eval env
+primEval =
+  mkPrim1 \_ o -> do
+    me <- toSExpr o
+    case me of
+      Nothing -> throw (EvalError "Failed to convert object to expression")
+      Just e -> ask >>= flip eval e
 
 primApply :: (MonadIO m, MonadEval n) => m (ObjRef n)
 primApply =
@@ -208,22 +216,50 @@ primCallCC =
       c <- cont k
       apply env o [c]
 
+primOpenInputFile :: (MonadIO m, MonadEval n) => m (ObjRef n)
+primOpenInputFile = mkFileOpenPrim ReadMode
+
+primOpenOutputFile :: (MonadIO m, MonadEval n) => m (ObjRef n)
+primOpenOutputFile = mkFileOpenPrim WriteMode
+
+primCloseInputPort :: (MonadIO m, MonadEval n) => m (ObjRef n)
+primCloseInputPort =
+  mkPrim1 \_ o -> do
+    h <- expectPort o
+    undef <$ liftIO (hClose h)
+
+primCloseOutputPort :: (MonadIO m, MonadEval n) => m (ObjRef n)
+primCloseOutputPort = primCloseInputPort
+
+primRead :: (MonadIO m, MonadEval n) => m (ObjRef n)
+primRead =
+  prim . const $ \os -> do
+    h <- case os of
+      [] -> pure stdin
+      [o] -> expectPort o
+      _ -> throw (EvalError "Arity Mismatch")
+    txt <- liftIO (T.hGetContents h)
+    case readSExprList "" txt of
+      Left err -> throw (ReadError err)
+      Right es -> foldrM (\e o -> fromSExpr e >>= flip cons o) empty es
+
 primDisplay :: (MonadIO m, MonadEval n) => m (ObjRef n)
 primDisplay =
-  mkPrim1 \_ o -> undef <$ (display o >>= liftIO . T.putStr)
+  prim . const $ \os -> do
+    (o, h) <- case os of
+      [o] -> pure (o, stdout)
+      [o1, o2] -> (o1,) <$> expectPort o2
+      _ -> throw (EvalError "ArityMismatch")
+    undef <$ (display o >>= liftIO . T.hPutStr h)
 
 primWrite :: (MonadIO m, MonadEval n) => m (ObjRef n)
 primWrite =
-  mkPrim1 \_ o -> undef <$ (write o >>= liftIO . T.putStr)
-
-primLoad :: (MonadIO m, MonadEval n) => m (ObjRef n)
-primLoad =
-  mkPrim1 \env o ->
-    expectStr o >>= \fp -> do
-      txt <- liftIO (T.readFile (T.unpack fp))
-      case readSExprList (T.unpack fp) txt of
-        Left err -> throw (ReadError err)
-        Right prog -> evalMany env prog
+  prim . const $ \os -> do
+    (o, h) <- case os of
+      [o] -> pure (o, stdout)
+      [o1, o2] -> (o1,) <$> expectPort o2
+      _ -> throw (EvalError "ArityMismatch")
+    undef <$ (write o >>= liftIO . T.hPutStr h)
 
 primExit :: (MonadIO m, MonadEval n) => m (ObjRef n)
 primExit =
@@ -265,6 +301,13 @@ mkNumBinPred p =
     n2 <- expectNum o2
     pure $! if p n1 n2 then true else false
 
+mkFileOpenPrim :: (MonadIO m, MonadEval n) => IOMode -> m (ObjRef n)
+mkFileOpenPrim mode =
+  mkPrim1 \_ o -> do
+    path <- expectStr o
+    h <- liftIO $ openFile (T.unpack path) mode
+    port h
+
 -- Value extraction
 
 expectNum :: (MonadIO m, MonadThrow m) => ObjRef n -> m Integer
@@ -285,28 +328,17 @@ expectSym obj =
     Sym s -> pure s
     _ -> throw (EvalError "expect number")
 
+expectPort :: (MonadIO m, MonadThrow m) => ObjRef n -> m Handle
+expectPort obj =
+  deref obj >>= \case
+    Port h -> pure h
+    _ -> throw (EvalError "expect number")
+
 expectCons :: (MonadIO m, MonadThrow m) => ObjRef n -> m (ObjRef n, ObjRef n)
 expectCons obj =
   deref obj >>= \case
     Cons car cdr -> pure (car, cdr)
     _ -> throw (EvalError "expect cons")
-
--- Object -> SExpr
-toCode :: (MonadIO m, MonadThrow m) => ObjRef n -> m SExpr
-toCode r =
-  deref r >>= \case
-    Empty -> pure $! SList [] Nothing
-    Bool b -> pure $! SBool b
-    Num n -> pure $! SNum n
-    Str s -> pure $! SStr s
-    Sym s -> pure $! SSym s
-    Cons car cdr -> do
-      x <- toCode car
-      y <- toCode cdr
-      case y of
-        SList es me -> pure $! SList (x : es) me
-        _ -> pure $! SList [] (Just y)
-    _ -> throw (EvalError "Failed to convert object to s-expression")
 
 -- application
 
