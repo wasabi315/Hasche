@@ -77,16 +77,21 @@
       (begin
         (define var (car (car binds)))
         (define init (cadr (car binds)))
-        `(let ((,var ,init)) (let* ,(cdr binds) ,@body)))))
+        (define rest-binds (cdr binds))
+        `(let ((,var ,init)) (let* ,rest-binds ,@body)))))
 
-(define-macro (cond . row)
-  (if (null? row)
+(define-macro (cond . rows)
+  (if (null? rows)
       `(begin)
-      (if (eq? (caar row) 'else)
-          `(begin ,@(cdar row))
-          `(if ,(caar row)
-               (begin ,@(cdar row))
-               (cond ,@(cdr row))))))
+      (begin
+        (define pred (caar rows))
+        (define clauses (cdar rows))
+        (define rest-rows (cdr rows))
+        (if (eq? pred 'else)
+            `(begin ,@clauses)
+            `(if ,pred
+                 (begin ,@clauses)
+                 (cond ,@rest-rows))))))
 
 (define-macro (begin . body) `((lambda () ,@body)))
 (define-macro (when test . body) `(if ,test (begin ,@body)))
