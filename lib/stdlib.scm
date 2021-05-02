@@ -63,4 +63,5 @@
 (define (load path)
   (define p (open-input-file path))
   (define es (read p))
+  (close-input-port p)
   (for-each eval es))
