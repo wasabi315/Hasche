@@ -66,6 +66,24 @@
   (close-input-port p)
   (for-each eval es))
 
+; Basic Macros
+(define-macro (begin . body) `((lambda () ,@body)))
+(define-macro (when test . body) `(if ,test (begin ,@body)))
+(define-macro (unless test . body) `(if (not ,test) (begin ,@body)))
+
+(define-macro (and . l)
+  (if (null? l)
+      `#t
+      `(if ,(car l)
+           (and ,@(cdr l))
+           #f)))
+(define-macro (or . l)
+  (if (null? l)
+      `#f
+      `(if ,(car l)
+           #t
+           (or ,@(cdr l)))))
+
 ; Lazy
 (define-macro (delay x) `(lambda () ,x))
 (define (force x) (x))
