@@ -268,6 +268,11 @@ primExit :: (MonadIO m, MonadEval n) => m (Object n)
 primExit =
   mkPrim0 \_ -> undef <$ liftIO exitSuccess
 
+primError :: (MonadIO m, MonadEval n) => m (Object n)
+primError =
+  prim . const $
+    traverse display >=> throw . UserError . T.concat
+
 -- smart constructors
 
 mkPrim0 :: (MonadIO m, MonadEval n) => (Env n -> n (Object n)) -> m (Object n)

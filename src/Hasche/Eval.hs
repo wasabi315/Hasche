@@ -57,12 +57,14 @@ data Error
   = ReadError ReadError
   | SynError Text
   | EvalError Text
+  | UserError Text
   deriving (Show)
 
 instance Exception Error where
   displayException (ReadError err) = "[READ ERROR]: " ++ displayException err
   displayException (SynError err) = "[SYNTAX ERROR]: " ++ T.unpack err
   displayException (EvalError err) = "[EVAL ERROR]: " ++ T.unpack err
+  displayException (UserError err) = "[USER ERROR]: " ++ T.unpack err
 
 -- Evaluation
 

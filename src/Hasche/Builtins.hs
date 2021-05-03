@@ -75,6 +75,8 @@ builtinEnv = do
   bind e "display" =<< primDisplay
   bind e "write" =<< primWrite
 
+  bind e "error" =<< primError
+
   bind e "exit" =<< primExit
 
   pure e
