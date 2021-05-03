@@ -79,6 +79,12 @@
         (define init (cadr (car binds)))
         (define rest-binds (cdr binds))
         `(let ((,var ,init)) (let* ,rest-binds ,@body)))))
+(define-macro (letrec binds . body)
+  (define inits
+    (map (lambda (bind) `(,(car bind) ())) binds))
+  (define sets
+    (map (lambda (bind) `(set! ,(car bind) ,(cadr bind))) binds))
+  `(let ,inits ,@sets ,@body))
 
 (define-macro (cond . rows)
   (if (null? rows)
