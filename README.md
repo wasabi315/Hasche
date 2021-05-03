@@ -14,9 +14,9 @@ $ cabal build
 
 ### Run
 ```sh
-$ cabal exec hasche exec -- programs/hello.scm
+$ cabal exec hasche -- exec programs/hello.scm
 # or
-$ cabal exec hasche repl
+$ cabal exec hasche -- repl
 ```
 
 ## List of available syntax, macros & functions
