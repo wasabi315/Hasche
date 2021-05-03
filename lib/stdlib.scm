@@ -42,6 +42,14 @@
 (define (cadr x) (car (cdr x)))
 (define (cdar x) (cdr (car x)))
 (define (cddr x) (cdr (cdr x)))
+(define (caaar x) (car (car (car x))))
+(define (caadr x) (car (car (cdr x))))
+(define (cadar x) (car (cdr (car x))))
+(define (caddr x) (car (cdr (cdr x))))
+(define (cdaar x) (cdr (car (car x))))
+(define (cdadr x) (cdr (car (cdr x))))
+(define (cddar x) (cdr (cdr (car x))))
+(define (cdddr x) (cdr (cdr (cdr x))))
 
 (define (for-each f l)
   (if (null? l)
@@ -115,6 +123,21 @@
 (define-macro (begin . body) `((lambda () ,@body)))
 (define-macro (when test . body) `(if ,test (begin ,@body)))
 (define-macro (unless test . body) `(if (not ,test) (begin ,@body)))
+
+(define-macro (do binds test&exprs . body)
+  (define vars (map car binds))
+  (define inits (map cadr binds))
+  (define steps (map caddr binds))
+  (define test (car test&exprs))
+  (define exprs (cdr test&exprs))
+  (define sym (gensym))
+  `(letrec
+    ((,sym
+      (lambda ,vars
+        (if ,test
+            (begin ,@exprs)
+            (begin ,@body (,sym ,@steps))))))
+    (,sym ,@inits)))
 
 (define-macro (and . l)
   (if (null? l)
