@@ -67,10 +67,22 @@
   (for-each eval es))
 
 ; Basic Macros
-(define-macro (let binds . body)
-  (define vars (map car binds))
-  (define inits (map cadr binds))
-  `((lambda ,vars ,@body) ,@inits))
+(define-macro (let . args)
+  (define (let-expander binds body)
+    (define vars (map car binds))
+    (define inits (map cadr binds))
+    `((lambda ,vars ,@body) ,@inits))
+
+  (define (named-let-expander name binds body)
+    (define vars (map car binds))
+    (define inits (map cadr binds))
+    (define proc `(lambda ,vars ,@body))
+    `(letrec ((,name ,proc)) (,name ,@inits)))
+
+  (if (symbol? (car args))
+      (named-let-expander (car args) (cadr args) (cddr args))
+      (let-expander (car args) (cdr args))))
+
 (define-macro (let* binds . body)
   (if (null? binds)
       `(begin ,@body)
@@ -79,6 +91,7 @@
         (define init (cadr (car binds)))
         (define rest-binds (cdr binds))
         `(let ((,var ,init)) (let* ,rest-binds ,@body)))))
+
 (define-macro (letrec binds . body)
   (define inits
     (map (lambda (bind) `(,(car bind) ())) binds))

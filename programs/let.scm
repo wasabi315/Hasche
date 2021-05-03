@@ -6,3 +6,8 @@
 (display (let ((x 1) (y 1)) (+ x y))) (newline)
 (display (let* ((x 1) (y x)) (+ x y))) (newline)
 (display (letrec ((x 1) (y 1)) (+ x y))) (newline)
+
+(let loop ((i 0))
+   (display i)
+   (if (< i 10)
+       (loop (+ i 1))))
