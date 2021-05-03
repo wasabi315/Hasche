@@ -308,7 +308,10 @@ mkFileOpenPrim :: (MonadIO m, MonadEval n) => IOMode -> m (Object n)
 mkFileOpenPrim mode =
   mkPrim1 \_ o -> do
     path <- expectStr o
-    h <- liftIO $ openFile (T.unpack path) mode
+    h <-
+      liftIO $
+        openFile (T.unpack path) mode
+          `catchIO` \err -> throw (EvalError $! T.pack (displayException err))
     port h
 
 -- Value extraction
