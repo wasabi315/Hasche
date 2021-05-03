@@ -26,7 +26,7 @@ define, define-macro, set!, lambda, if, quote, quasiquote, unquote, unquote-spli
 ```
 ### Basic macros
 ```
-begin, when, unless, and, or, cond
+begin, when, unless, and, or, cond, let, let*, letrec, do
 ```
 ### Basic functions
 ```
@@ -55,6 +55,9 @@ open-input-file, open-output-file, close-input-port, close-output-port, read, di
 ```
 ```
 call/cc, call-with-current-continuation
+```
+```
+gensym
 ```
 ### Lazy evaluation
 ```
