@@ -8,6 +8,7 @@
 
 module Hasche.Object
   ( Object,
+    ObjLoc,
     undef,
     empty,
     true,
@@ -33,6 +34,7 @@ module Hasche.Object
     pattern Prim,
     pattern Func,
     pattern Cont,
+    loc,
     ObjRef,
     deref,
     (.=),
@@ -57,13 +59,20 @@ import Data.Text (Text)
 import GHC.IO.Unsafe
 import Hasche.SExpr
 import System.IO
+import System.Mem.StableName
 import Prelude hiding (lookup)
 
 -- data types
 
+-- for variable and cons cell
 type ObjRef m = IORef (Object m)
 
-data Object m
+-- for pointer equality
+type ObjLoc m = StableName (ObjKind m)
+
+data Object m = Object_ (ObjKind m) (ObjLoc m)
+
+data ObjKind m
   = Undef_
   | Empty_
   | Bool_ Bool
@@ -72,12 +81,12 @@ data Object m
   | Sym_ Text
   | Port_ Handle
   | Cons_ (ObjRef m) (ObjRef m)
-  | Syn_ (Env m -> [SExpr] -> m (ObjRef m))
-  | Prim_ (Env m -> [ObjRef m] -> m (ObjRef m))
-  | Func_ (Env m) (Env m -> [ObjRef m] -> m (ObjRef m))
-  | Cont_ (ObjRef m -> m (ObjRef m))
+  | Syn_ (Env m -> [SExpr] -> m (Object m))
+  | Prim_ (Env m -> [Object m] -> m (Object m))
+  | Func_ (Env m) (Env m -> [Object m] -> m (Object m))
+  | Cont_ (Object m -> m (Object m))
 
-type SymTable m = BasicHashTable Text (ObjRef m)
+type SymTable m = BasicHashTable Text (Object m)
 
 -- global symbol table
 _symtbl :: SymTable m
@@ -91,110 +100,118 @@ data Env m = Env
 
 -- object constructors
 
+alloc :: MonadIO m => ObjKind n -> m (Object n)
+alloc k = Object_ k <$!> liftIO (makeStableName k)
+
 -- allocate only once
-undef, empty, true, false :: ObjRef m
-undef = unsafePerformIO (newIORef Undef_)
-empty = unsafePerformIO (newIORef Empty_)
-true = unsafePerformIO (newIORef $! Bool_ True)
-false = unsafePerformIO (newIORef $! Bool_ False)
+undef, empty, true, false :: Object m
+undef = unsafePerformIO (alloc Undef_)
+empty = unsafePerformIO (alloc Empty_)
+true = unsafePerformIO (alloc $! Bool_ True)
+false = unsafePerformIO (alloc $! Bool_ False)
 {-# NOINLINE undef #-}
 {-# NOINLINE empty #-}
 {-# NOINLINE true #-}
 {-# NOINLINE false #-}
 
-num :: MonadIO m => Integer -> m (ObjRef n)
-num n = liftIO . newIORef $! Num_ n
+num :: MonadIO m => Integer -> m (Object n)
+num n = liftIO . alloc $! Num_ n
 
-str :: MonadIO m => Text -> m (ObjRef n)
-str s = liftIO . newIORef $! Str_ s
+str :: MonadIO m => Text -> m (Object n)
+str s = liftIO . alloc $! Str_ s
 
 -- May create new symbol
-sym :: MonadIO m => Text -> m (ObjRef n)
+sym :: MonadIO m => Text -> m (Object n)
 sym s = liftIO $
   HT.mutateIO _symtbl s \case
     Just obj -> pure (Just obj, obj)
     Nothing -> do
-      obj <- newIORef $! Sym_ s
+      obj <- alloc $! Sym_ s
       pure (Just obj, obj)
 
-port :: MonadIO m => Handle -> m (ObjRef n)
-port h = liftIO . newIORef $! Port_ h
+port :: MonadIO m => Handle -> m (Object n)
+port h = liftIO . alloc $! Port_ h
 
-cons :: MonadIO m => ObjRef n -> ObjRef n -> m (ObjRef n)
-cons car cdr = liftIO . newIORef $! Cons_ car cdr
+cons :: MonadIO m => Object n -> Object n -> m (Object n)
+cons car cdr = liftIO do
+  ref1 <- newIORef car
+  ref2 <- newIORef cdr
+  alloc $! Cons_ ref1 ref2
 
-syn :: MonadIO m => (Env n -> [SExpr] -> n (ObjRef n)) -> m (ObjRef n)
-syn f = liftIO . newIORef $! Syn_ f
+syn :: MonadIO m => (Env n -> [SExpr] -> n (Object n)) -> m (Object n)
+syn f = liftIO . alloc $! Syn_ f
 
-prim :: MonadIO m => (Env n -> [ObjRef n] -> n (ObjRef n)) -> m (ObjRef n)
-prim f = liftIO . newIORef $! Prim_ f
+prim :: MonadIO m => (Env n -> [Object n] -> n (Object n)) -> m (Object n)
+prim f = liftIO . alloc $! Prim_ f
 
-func :: MonadIO m => Env n -> (Env n -> [ObjRef n] -> n (ObjRef n)) -> m (ObjRef n)
-func e f = liftIO . newIORef $! Func_ e f
+func :: MonadIO m => Env n -> (Env n -> [Object n] -> n (Object n)) -> m (Object n)
+func e f = liftIO . alloc $! Func_ e f
 
-cont :: MonadIO m => (ObjRef n -> n (ObjRef n)) -> m (ObjRef n)
-cont k = liftIO . newIORef $! Cont_ k
+cont :: MonadIO m => (Object n -> n (Object n)) -> m (Object n)
+cont k = liftIO . alloc $! Cont_ k
 
 -- object destructors
 
 pattern Undef, Empty :: Object m
-pattern Undef <- Undef_
-pattern Empty <- Empty_
+pattern Undef <- Object_ Undef_ _
+pattern Empty <- Object_ Empty_ _
 
 pattern Bool :: Bool -> Object m
-pattern Bool b <- Bool_ b
+pattern Bool b <- Object_ (Bool_ b) _
 
 pattern Num :: Integer -> Object m
-pattern Num n <- Num_ n
+pattern Num n <- Object_ (Num_ n) _
 
 pattern Str :: Text -> Object m
-pattern Str s <- Str_ s
+pattern Str s <- Object_ (Str_ s) _
 
 pattern Sym :: Text -> Object m
-pattern Sym s <- Sym_ s
+pattern Sym s <- Object_ (Sym_ s) _
 
 pattern Port :: Handle -> Object m
-pattern Port h <- Port_ h
+pattern Port h <- Object_ (Port_ h) _
 
 pattern Cons :: ObjRef m -> ObjRef m -> Object m
-pattern Cons r1 r2 <- Cons_ r1 r2
+pattern Cons r1 r2 <- Object_ (Cons_ r1 r2) _
 
-pattern Syn :: (Env m -> [SExpr] -> m (ObjRef m)) -> Object m
-pattern Syn f <- Syn_ f
+pattern Syn :: (Env m -> [SExpr] -> m (Object m)) -> Object m
+pattern Syn f <- Object_ (Syn_ f) _
 
-pattern Prim :: (Env m -> [ObjRef m] -> m (ObjRef m)) -> Object m
-pattern Prim f <- Prim_ f
+pattern Prim :: (Env m -> [Object m] -> m (Object m)) -> Object m
+pattern Prim f <- Object_ (Prim_ f) _
 
-pattern Func :: Env m -> (Env m -> [ObjRef m] -> m (ObjRef m)) -> Object m
-pattern Func e f <- Func_ e f
+pattern Func :: Env m -> (Env m -> [Object m] -> m (Object m)) -> Object m
+pattern Func e f <- Object_ (Func_ e f) _
 
-pattern Cont :: (ObjRef m -> m (ObjRef m)) -> Object m
-pattern Cont k <- Cont_ k
+pattern Cont :: (Object m -> m (Object m)) -> Object m
+pattern Cont k <- Object_ (Cont_ k) _
 
 {-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Prim, Func, Cont #-}
 
+loc :: Object n -> ObjLoc n
+loc (Object_ _ l) = l
+
 -- utils
 
-toSExpr :: MonadIO m => ObjRef n -> m (Maybe SExpr)
-toSExpr r =
-  deref r >>= \case
-    Empty -> pure . Just $! SList [] Nothing
-    Bool b -> pure . Just $! SBool b
-    Num n -> pure . Just $! SNum n
-    Str s -> pure . Just $! SStr s
-    Sym s -> pure . Just $! SSym s
-    Cons car cdr -> do
-      mx <- toSExpr car
-      my <- toSExpr cdr
-      case (mx, my) of
-        (Just x, Just y) ->
-          case y of
-            SList es me -> pure . Just $! SList (x : es) me
-            _ -> pure . Just $! SList [] (Just y)
-        _ -> pure Nothing
-    _ -> pure Nothing
+toSExpr :: MonadIO m => Object n -> m (Maybe SExpr)
+toSExpr = \case
+  Empty -> pure . Just $! SList [] Nothing
+  Bool b -> pure . Just $! SBool b
+  Num n -> pure . Just $! SNum n
+  Str s -> pure . Just $! SStr s
+  Sym s -> pure . Just $! SSym s
+  Cons car cdr -> do
+    mx <- deref car >>= toSExpr
+    my <- deref cdr >>= toSExpr
+    case (mx, my) of
+      (Just x, Just y) ->
+        case y of
+          SList es me -> pure . Just $! SList (x : es) me
+          _ -> pure . Just $! SList [] (Just y)
+      _ -> pure Nothing
+  _ -> pure Nothing
 
-fromSExpr :: MonadIO m => SExpr -> m (ObjRef n)
+fromSExpr :: MonadIO m => SExpr -> m (Object n)
 fromSExpr (SBool b) = pure if b then true else false
 fromSExpr (SNum n) = num n
 fromSExpr (SStr s) = str s
@@ -230,5 +247,5 @@ lookup e i = lookup' e
           Just env' -> lookup' env'
           Nothing -> pure Nothing
 
-bind :: MonadIO m => Env n -> Text -> ObjRef n -> m ()
-bind e i x = liftIO $ HT.insert (binds e) i x
+bind :: MonadIO m => Env n -> Text -> Object n -> m ()
+bind e i x = liftIO $ HT.insert (binds e) i =<< newIORef x

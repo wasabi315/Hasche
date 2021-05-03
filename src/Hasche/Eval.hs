@@ -66,10 +66,10 @@ instance Exception Error where
 
 -- Evaluation
 
-evalMany :: MonadEval m => Env m -> [SExpr] -> m (ObjRef m)
+evalMany :: MonadEval m => Env m -> [SExpr] -> m (Object m)
 evalMany env = traverseAndLast (eval env) undef
 
-eval :: MonadEval m => Env m -> SExpr -> m (ObjRef m)
+eval :: MonadEval m => Env m -> SExpr -> m (Object m)
 eval _ (SList [] Nothing) = pure empty
 eval _ (SBool b) = pure if b then true else false
 eval _ (SNum n) = num n
@@ -77,9 +77,9 @@ eval _ (SStr s) = str s
 eval env (SSym s) =
   lookup env s >>= \case
     Nothing -> throw (EvalError $! "Unbound identifier: " <> s)
-    Just ref -> pure ref
+    Just ref -> deref ref
 eval env (SList (x : xs) Nothing) = do
-  obj <- eval env x >>= deref
+  obj <- eval env x
   case obj of
     Syn f -> f env xs
     Prim f -> do

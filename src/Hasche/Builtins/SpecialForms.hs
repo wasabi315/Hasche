@@ -21,13 +21,13 @@ import Prelude hiding (lookup)
 
 -- special forms
 
-synQuote :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synQuote :: (MonadIO m, MonadEval n) => m (Object n)
 synQuote = syn quote
   where
     quote _ [e] = fromSExpr e
     quote _ _ = throw (SynError "Illegal quote syntax")
 
-synQuasiquote :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synQuasiquote :: (MonadIO m, MonadEval n) => m (Object n)
 synQuasiquote = syn quasiquote
   where
     quasiquote env [e] = qq env e
@@ -38,13 +38,16 @@ synQuasiquote = syn quasiquote
     uqsExpr (SList [SSym "unquote-splicing", e] Nothing) = Just e
     uqsExpr _ = Nothing
 
-    expectList o =
-      deref o >>= \case
-        Empty -> pure []
-        Cons car cdr -> (car :) <$!> expectList cdr
-        _ -> throw (EvalError "expect list")
+    expectList :: MonadEval m => Object m -> m [Object m]
+    expectList = \case
+      Empty -> pure []
+      Cons car cdr -> do
+        o1 <- deref car
+        o2 <- deref cdr
+        (o1 :) <$> expectList o2
+      _ -> throw (EvalError "expect list")
 
-    qq :: MonadEval m => Env m -> SExpr -> m (ObjRef m)
+    qq :: MonadEval m => Env m -> SExpr -> m (Object m)
     qq _ (SBool b) = pure if b then true else false
     qq _ (SNum n) = num n
     qq _ (SStr s) = str s
@@ -59,42 +62,42 @@ synQuasiquote = syn quasiquote
     qqs env (uqsExpr -> Just e) = eval env e >>= expectList
     qqs env e = pure <$!> qq env e
 
-synUnquote :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synUnquote :: (MonadIO m, MonadEval n) => m (Object n)
 synUnquote = syn unquote
   where
     unquote _ _ = throw (SynError "unquote appeared outside quasiquote")
 
-synUnquoteSplicing :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synUnquoteSplicing :: (MonadIO m, MonadEval n) => m (Object n)
 synUnquoteSplicing = syn unquoteSplicing
   where
     unquoteSplicing _ _ = throw (SynError "unquote-splicing appeared outside quasiquote")
 
-synIf :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synIf :: (MonadIO m, MonadEval n) => m (Object n)
 synIf = syn if_
   where
     if_ env [e0, e1] = do
-      b <- eval env e0 >>= deref
+      b <- eval env e0
       case b of
         Bool False -> pure undef
         _ -> eval env e1
     if_ env [e0, e1, e2] = do
-      b <- eval env e0 >>= deref
+      b <- eval env e0
       case b of
         Bool False -> eval env e2
         _ -> eval env e1
     if_ _ _ = throw (SynError "Illegal if syntax")
 
-synSet :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synSet :: (MonadIO m, MonadEval n) => m (Object n)
 synSet = syn set
   where
     set env [SSym s, e] = do
-      obj <- eval env e >>= deref
+      obj <- eval env e
       lookup env s >>= \case
         Nothing -> throw (EvalError $! "Unbound identifier: " <> s)
         Just ref -> undef <$ (ref .= obj)
     set _ _ = throw (SynError "Illegal set! syntax")
 
-synDefine :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synDefine :: (MonadIO m, MonadEval n) => m (Object n)
 synDefine = syn define
   where
     define env [SSym s, e] = do
@@ -105,7 +108,7 @@ synDefine = syn define
       undef <$ bind env s obj
     define _ _ = throw (SynError "Illegal define syntax")
 
-synDefMacro :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synDefMacro :: (MonadIO m, MonadEval n) => m (Object n)
 synDefMacro = syn defMacro
   where
     defMacro env es = do
@@ -121,13 +124,13 @@ synDefMacro = syn defMacro
           Just e -> eval env'' e
       undef <$ bind env s o2
 
-synLambda :: (MonadIO m, MonadEval n) => m (ObjRef n)
+synLambda :: (MonadIO m, MonadEval n) => m (Object n)
 synLambda = syn lambda
   where
     lambda env (ps : b) = mkClosure env ps b
     lambda _ _ = throw (SynError "Illegal lambda syntax")
 
-mkClosure :: MonadEval m => Env m -> SExpr -> [SExpr] -> m (ObjRef m)
+mkClosure :: MonadEval m => Env m -> SExpr -> [SExpr] -> m (Object m)
 mkClosure = \env e b -> do
   case extractParams e of
     Nothing -> throw (SynError "Illegal parameters")
@@ -151,7 +154,7 @@ mkClosure = \env e b -> do
     expectSSym (SSym s) = Just s
     expectSSym _ = Nothing
 
-    bindArgs :: MonadEval m => Env m -> [Text] -> Maybe Text -> [ObjRef m] -> m ()
+    bindArgs :: MonadEval m => Env m -> [Text] -> Maybe Text -> [Object m] -> m ()
     bindArgs _ [] Nothing [] = pure ()
     bindArgs env [] (Just p) os = do
       o <- foldrM cons empty os
@@ -172,8 +175,7 @@ mkClosure = \env e b -> do
 
 -- utils
 
-expectFunc :: (MonadIO m, MonadThrow m) => ObjRef n -> m (Env n, Env n -> [ObjRef n] -> n (ObjRef n))
-expectFunc obj =
-  deref obj >>= \case
-    Func e f -> pure (e, f)
-    _ -> throw (EvalError "expect closure")
+expectFunc :: (MonadIO m, MonadThrow m) => Object n -> m (Env n, Env n -> [Object n] -> n (Object n))
+expectFunc = \case
+  Func e f -> pure (e, f)
+  _ -> throw (EvalError "expect closure")

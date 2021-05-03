@@ -38,7 +38,7 @@ newInterpreter fp = do
 
   pure run
 
-data SomeObj = forall m. Obj (ObjRef m)
+data SomeObj = forall m. Obj (Object m)
 
 display :: SomeObj -> IO Text
 display (Obj obj) = Fmt.display obj
