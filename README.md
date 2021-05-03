@@ -33,19 +33,19 @@ begin, when, unless, and, or, cond
 eval, apply
 ```
 ```
-number?, +, -, *, /, =, <, <=, >, >=
+null?, pair?, boolean?, number?, string?, symbol?, procedure?
 ```
 ```
-null?, pair?, list?, symbol?, car, cdr, cons, list, length, memq, last, append, set-car!, set-cdr!, caar, cadr, cdar, cddr, map, for-each
+not
 ```
 ```
-boolean?, not
++, -, *, /, =, <, <=, >, >=
 ```
 ```
-string?, string-append, symbol->string, string->symbol, string->number, number->string
+list?, car, cdr, cons, list, length, memq, last, append, set-car!, set-cdr!, caar, cadr, cdar, cddr, map, for-each
 ```
 ```
-procedure?
+string-append, symbol->string, string->symbol, string->number, number->string
 ```
 ```
 eq?, neq?, equal?
