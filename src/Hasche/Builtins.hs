@@ -57,6 +57,8 @@ builtinEnv = do
   bind e "string->symbol" =<< primStrSym
   bind e "symbol->string" =<< primSymStr
 
+  bind e "gensym" =<< primGensym
+
   bind e "cons" =<< primCons
   bind e "car" =<< primCar
   bind e "cdr" =<< primCdr

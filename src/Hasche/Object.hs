@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
@@ -16,6 +17,7 @@ module Hasche.Object
     num,
     str,
     sym,
+    gensym,
     port,
     cons,
     syn,
@@ -60,6 +62,7 @@ import GHC.IO.Unsafe
 import Hasche.SExpr
 import System.IO
 import System.Mem.StableName
+import Text.StringRandom
 import Prelude hiding (lookup)
 
 -- data types
@@ -128,6 +131,16 @@ sym s = liftIO $
     Nothing -> do
       obj <- alloc $! Sym_ s
       pure (Just obj, obj)
+
+gensym :: MonadIO m => m (Object n)
+gensym = do
+  s <- liftIO $ stringRandomIO "#G\\d\\d\\d\\d\\d"
+  mo <- liftIO $ HT.mutateIO _symtbl s \case
+    Just obj -> pure (Just obj, Nothing)
+    Nothing -> do
+      obj <- alloc $! Sym_ s
+      pure (Just obj, Just obj)
+  maybe gensym pure mo
 
 port :: MonadIO m => Handle -> m (Object n)
 port h = liftIO . alloc $! Port_ h

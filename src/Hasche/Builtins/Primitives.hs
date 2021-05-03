@@ -189,6 +189,10 @@ primSymStr =
   mkPrim1 . const $
     expectSym >=> str
 
+primGensym :: (MonadIO m, MonadEval n) => m (Object n)
+primGensym =
+  mkPrim0 . const $ gensym
+
 primCons :: (MonadIO m, MonadEval n) => m (Object n)
 primCons = mkPrim2 \_ x y -> cons x y
 
