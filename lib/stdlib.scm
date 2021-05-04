@@ -115,7 +115,9 @@
         (define clauses (cdar rows))
         (define rest-rows (cdr rows))
         (if (eq? pred 'else)
-            `(begin ,@clauses)
+            (if (not (null? rest-rows))
+                (error "else block is allowed at most once in cond")
+                `(begin ,@clauses))
             `(if ,pred
                  (begin ,@clauses)
                  (cond ,@rest-rows))))))
