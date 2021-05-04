@@ -27,7 +27,7 @@ newInterpreter fp = do
 
   let run txt =
         case readSExprList fp txt of
-          Left err -> pure (Left (ReadError err))
+          Left e -> pure (Left (ReadError e))
           Right prog -> do
             catch
               (runEvalM (evalMany topEnv prog) topEnv (pure . Right . Obj))

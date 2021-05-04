@@ -243,7 +243,7 @@ primRead =
       _ -> throw (EvalError "Arity Mismatch")
     txt <- liftIO (T.hGetContents h)
     case readSExprList "" txt of
-      Left err -> throw (ReadError err)
+      Left e -> throw (ReadError e)
       Right es -> foldrM (\e o -> fromSExpr e >>= flip cons o) empty es
 
 primDisplay :: (MonadIO m, MonadEval n) => m (Object n)
@@ -313,10 +313,7 @@ mkFileOpenPrim :: (MonadIO m, MonadEval n) => IOMode -> m (Object n)
 mkFileOpenPrim mode =
   mkPrim1 \_ o -> do
     path <- expectStr o
-    h <-
-      liftIO $
-        openFile (T.unpack path) mode
-          `catchIO` \err -> throw (EvalError $! T.pack (displayException err))
+    h <- liftIO $ openFile (T.unpack path) mode `catchIO` (throw . FileError)
     port h
 
 -- Value extraction
