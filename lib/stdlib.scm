@@ -108,19 +108,23 @@
   `(let ,inits ,@sets ,@body))
 
 (define-macro (cond . rows)
+  (define (expander rs)
+    (if (null? rs)
+        `(begin)
+        (begin
+          (define pred (caar rs))
+          (define clauses (cdar rs))
+          (define rest-rows (cdr rs))
+          (if (eq? pred 'else)
+              (if (not (null? rest-rows))
+                  (error "else block is allowed at most once in cond")
+                  `(begin ,@clauses))
+              `(if ,pred
+                  (begin ,@clauses)
+                  ,(expander rest-rows))))))
   (if (null? rows)
-      `(begin)
-      (begin
-        (define pred (caar rows))
-        (define clauses (cdar rows))
-        (define rest-rows (cdr rows))
-        (if (eq? pred 'else)
-            (if (not (null? rest-rows))
-                (error "else block is allowed at most once in cond")
-                `(begin ,@clauses))
-            `(if ,pred
-                 (begin ,@clauses)
-                 (cond ,@rest-rows))))))
+      (error "cond with no branches")
+      (expander rows)))
 
 (define-macro (begin . body) `((lambda () ,@body)))
 (define-macro (when test . body) `(if ,test (begin ,@body)))
