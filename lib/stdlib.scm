@@ -75,17 +75,28 @@
   (for-each eval es))
 
 ; Basic Macros
+(define (check-let-binds binds)
+  (for-each
+    (lambda (binds)
+      (if (or (not (list? binds))
+              (not (= (length binds) 2)))
+          (error "invalid let syntax")))
+    binds))
+
 (define-macro (let . args)
   (define (let-expander binds body)
-    (define vars (map car binds))
-    (define inits (map cadr binds))
-    `((lambda ,vars ,@body) ,@inits))
+    (check-let-binds binds)
+    (begin
+      (define vars (map car binds))
+      (define inits (map cadr binds))
+      `((lambda ,vars ,@body) ,@inits)))
 
   (define (named-let-expander name binds body)
-    (define vars (map car binds))
-    (define inits (map cadr binds))
-    (define proc `(lambda ,vars ,@body))
-    `(letrec ((,name ,proc)) (,name ,@inits)))
+    (check-let-binds binds)
+    (begin
+      (define vars (map car binds))
+      (define inits (map cadr binds))
+      `(letrec ((,name (lambda ,vars ,@body))) (,name ,@inits))))
 
   (if (symbol? (car args))
       (named-let-expander (car args) (cadr args) (cddr args))
@@ -95,17 +106,21 @@
   (if (null? binds)
       `(begin ,@body)
       (begin
-        (define var (car (car binds)))
-        (define init (cadr (car binds)))
-        (define rest-binds (cdr binds))
-        `(let ((,var ,init)) (let* ,rest-binds ,@body)))))
+        (check-let-binds binds)
+        (begin
+          (define var (car (car binds)))
+          (define init (cadr (car binds)))
+          (define rest-binds (cdr binds))
+          `(let ((,var ,init)) (let* ,rest-binds ,@body))))))
 
 (define-macro (letrec binds . body)
-  (define inits
-    (map (lambda (bind) `(,(car bind) ())) binds))
-  (define sets
-    (map (lambda (bind) `(set! ,(car bind) ,(cadr bind))) binds))
-  `(let ,inits ,@sets ,@body))
+  (check-let-binds binds)
+  (begin
+    (define inits
+      (map (lambda (binds) `(,(car binds) ())) binds))
+    (define sets
+      (map (lambda (binds) `(set! ,(car binds) ,(cadr binds))) binds))
+    `(let ,inits ,@sets ,@body)))
 
 (define-macro (cond . rows)
   (define (expander rs)
