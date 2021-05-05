@@ -22,7 +22,7 @@ import Text.Megaparsec.Char hiding (space)
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Megaparsec.Error.Builder
 
-type Parser = Parsec Void Text
+type Reader = Parsec Void Text
 
 type ReadError = ParseErrorBundle Text Void
 
@@ -35,7 +35,7 @@ readSExpr = parse (space *> expr <* eof) ""
 readSNum :: Text -> Maybe SExpr
 readSNum = parseMaybe num
 
-expr :: Parser SExpr
+expr :: Reader SExpr
 expr =
   choice
     [ atom,
@@ -43,7 +43,7 @@ expr =
       pairs
     ]
 
-quoted :: Parser SExpr
+quoted :: Reader SExpr
 quoted = do
   q <-
     choice
@@ -55,7 +55,7 @@ quoted = do
   e <- expr
   pure $! SList [q, e] Nothing
 
-pairs :: Parser SExpr
+pairs :: Reader SExpr
 pairs = between (symbol "(") (symbol ")") do
   es <- some expr
   choice
@@ -63,7 +63,7 @@ pairs = between (symbol "(") (symbol ")") do
       SList es . Just <$!> (symbol "." *> expr)
     ]
 
-atom :: Parser SExpr
+atom :: Reader SExpr
 atom =
   choice
     [ SList [] Nothing <$ symbol "()",
@@ -76,10 +76,10 @@ atom =
       lexeme ident
     ]
 
-num :: Parser SExpr
+num :: Reader SExpr
 num = SNum <$!> L.signed (pure ()) L.decimal
 
-str :: Parser SExpr
+str :: Reader SExpr
 str = SStr <$!> between (char '"') (char '"') (T.concat <$!> many str')
   where
     str' =
@@ -96,7 +96,7 @@ str = SStr <$!> between (char '"') (char '"') (T.concat <$!> many str')
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
-ident :: Parser SExpr
+ident :: Reader SExpr
 ident = try do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->
@@ -106,15 +106,15 @@ ident = try do
     then parseError (err o (utoks x))
     else pure $! SSym x
 
-space :: Parser ()
+space :: Reader ()
 space =
   L.space
     space1
     (L.skipLineComment ";")
     (L.skipBlockCommentNested "#|" "|#")
 
-lexeme :: Parser a -> Parser a
+lexeme :: Reader a -> Reader a
 lexeme = L.lexeme space
 
-symbol :: Text -> Parser Text
+symbol :: Text -> Reader Text
 symbol = L.symbol space
