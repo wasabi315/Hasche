@@ -12,6 +12,7 @@ extra-source-files: CHANGELOG.md
 library
     exposed-modules:  Hasche.SExpr
                     , Hasche.Reader
+                    , Hasche.Ptr
                     , Hasche.Object
                     , Hasche.Format
                     , Hasche.Eval

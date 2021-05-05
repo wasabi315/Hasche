@@ -6,10 +6,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Hasche.Object
   ( Object,
-    ObjLoc,
     undef,
     empty,
     true,
@@ -36,7 +36,6 @@ module Hasche.Object
     pattern Prim,
     pattern Func,
     pattern Cont,
-    loc,
     ObjRef,
     deref,
     (.=),
@@ -59,9 +58,9 @@ import Data.IORef
 import Data.Maybe
 import Data.Text (Text)
 import GHC.IO.Unsafe
+import Hasche.Ptr
 import Hasche.SExpr
 import System.IO
-import System.Mem.StableName
 import Text.StringRandom
 import Prelude hiding (lookup)
 
@@ -70,10 +69,7 @@ import Prelude hiding (lookup)
 -- for variable and cons cell
 type ObjRef m = IORef (Object m)
 
--- for pointer equality
-type ObjLoc m = StableName (ObjKind m)
-
-data Object m = Object_ (ObjKind m) (ObjLoc m)
+type Object m = Ptr (ObjKind m)
 
 data ObjKind m
   = Undef_
@@ -104,9 +100,6 @@ data Env m = Env
   }
 
 -- object constructors
-
-alloc :: MonadIO m => ObjKind n -> m (Object n)
-alloc k = Object_ k <$!> liftIO (makeStableName k)
 
 -- allocate only once
 undef, empty, true, false :: Object m
@@ -168,43 +161,40 @@ cont k = liftIO . alloc $! Cont_ k
 -- object destructors
 
 pattern Undef, Empty :: Object m
-pattern Undef <- Object_ Undef_ _
-pattern Empty <- Object_ Empty_ _
+pattern Undef <- (val -> Undef_)
+pattern Empty <- (val -> Empty_)
 
 pattern Bool :: Bool -> Object m
-pattern Bool b <- Object_ (Bool_ b) _
+pattern Bool b <- (val -> Bool_ b)
 
 pattern Num :: Integer -> Object m
-pattern Num n <- Object_ (Num_ n) _
+pattern Num n <- (val -> Num_ n)
 
 pattern Str :: Text -> Object m
-pattern Str s <- Object_ (Str_ s) _
+pattern Str s <- (val -> Str_ s)
 
 pattern Sym :: Text -> Object m
-pattern Sym s <- Object_ (Sym_ s) _
+pattern Sym s <- (val -> Sym_ s)
 
 pattern Port :: Handle -> Object m
-pattern Port h <- Object_ (Port_ h) _
+pattern Port h <- (val -> Port_ h)
 
 pattern Cons :: ObjRef m -> ObjRef m -> Object m
-pattern Cons r1 r2 <- Object_ (Cons_ r1 r2) _
+pattern Cons r1 r2 <- (val -> Cons_ r1 r2)
 
 pattern Syn :: (Env m -> [SExpr] -> m (Object m)) -> Object m
-pattern Syn f <- Object_ (Syn_ f) _
+pattern Syn f <- (val -> Syn_ f)
 
 pattern Prim :: (Env m -> [Object m] -> m (Object m)) -> Object m
-pattern Prim f <- Object_ (Prim_ f) _
+pattern Prim f <- (val -> Prim_ f)
 
 pattern Func :: Env m -> (Env m -> [Object m] -> m (Object m)) -> Object m
-pattern Func e f <- Object_ (Func_ e f) _
+pattern Func e f <- (val -> Func_ e f)
 
 pattern Cont :: (Object m -> m (Object m)) -> Object m
-pattern Cont k <- Object_ (Cont_ k) _
+pattern Cont k <- (val -> Cont_ k)
 
 {-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Prim, Func, Cont #-}
-
-loc :: Object n -> ObjLoc n
-loc (Object_ _ l) = l
 
 -- utils
 

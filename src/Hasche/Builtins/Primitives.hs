@@ -142,7 +142,7 @@ primEqv = mkPrim2 . const $ eqv
 primEqual = mkPrim2 . const $ equal
 
 eq :: MonadIO m => Object n -> Object n -> m (Object n)
-eq x y = pure if loc x == loc y then true else false
+eq x y = pure if x == y then true else false
 
 eqv :: MonadIO m => Object n -> Object n -> m (Object n)
 eqv x y =
@@ -159,7 +159,7 @@ equal x y = do
       o3 <- deref r3
       o4 <- deref r4
       t <- equal o1 o3
-      if loc t == loc true then equal o2 o4 else pure false
+      if t == true then equal o2 o4 else pure false
     _ -> eqv x y
 
 primStrAppend :: (MonadIO m, MonadEval n) => m (Object n)
