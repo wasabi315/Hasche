@@ -58,7 +58,7 @@ import Data.IORef
 import Data.Maybe
 import Data.Text (Text)
 import GHC.IO.Unsafe
-import Hasche.Ptr
+import Hasche.Box
 import Hasche.SExpr
 import System.IO
 import Text.StringRandom
@@ -69,7 +69,7 @@ import Prelude hiding (lookup)
 -- for variable and cons cell
 type ObjRef m = IORef (Object m)
 
-type Object m = Ptr (ObjKind m)
+type Object m = Box (ObjKind m)
 
 data ObjKind m
   = Undef_
