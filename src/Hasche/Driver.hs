@@ -34,7 +34,10 @@ newInterpreter fp = do
               (pure . Left)
 
   -- load standard library
-  _ <- T.readFile "lib/stdlib.scm" >>= run
+  res <- T.readFile "lib/stdlib.scm" >>= run
+  case res of
+    Left e -> throwString $ "Failed to load standard library: " ++ displayException e
+    Right _ -> pure ()
 
   pure run
 
