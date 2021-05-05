@@ -19,7 +19,6 @@ module Hasche.Object
     sym,
     gensym,
     port,
-    err,
     cons,
     syn,
     prim,
@@ -32,14 +31,12 @@ module Hasche.Object
     pattern Str,
     pattern Sym,
     pattern Port,
-    pattern Error,
     pattern Cons,
     pattern Syn,
     pattern Prim,
     pattern Func,
     pattern Cont,
     loc,
-    Error (..),
     ObjRef,
     deref,
     (.=),
@@ -53,7 +50,6 @@ module Hasche.Object
   )
 where
 
-import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Foldable
@@ -62,9 +58,7 @@ import Data.HashTable.IO qualified as HT
 import Data.IORef
 import Data.Maybe
 import Data.Text (Text)
-import Data.Text qualified as T
 import GHC.IO.Unsafe
-import Hasche.Reader
 import Hasche.SExpr
 import System.IO
 import System.Mem.StableName
@@ -89,29 +83,11 @@ data ObjKind m
   | Str_ Text
   | Sym_ Text
   | Port_ Handle
-  | Error_ Error
   | Cons_ (ObjRef m) (ObjRef m)
   | Syn_ (Env m -> [SExpr] -> m (Object m))
   | Prim_ (Env m -> [Object m] -> m (Object m))
   | Func_ (Env m) (Env m -> [Object m] -> m (Object m))
   | Cont_ (Object m -> m (Object m))
-
--- Errors
-
-data Error
-  = ReadError ReadError
-  | FileError IOException
-  | SynError Text
-  | EvalError Text
-  | UserError Text
-  deriving (Show)
-
-instance Exception Error where
-  displayException (ReadError e) = "[READ ERROR]: " ++ displayException e
-  displayException (FileError e) = "[FILE ERROR]:" ++ displayException e
-  displayException (SynError e) = "[SYNTAX ERROR]: " ++ T.unpack e
-  displayException (EvalError e) = "[EVAL ERROR]: " ++ T.unpack e
-  displayException (UserError e) = "[USER ERROR]: " ++ T.unpack e
 
 -- Symbol table
 
@@ -171,9 +147,6 @@ gensym = do
 port :: MonadIO m => Handle -> m (Object n)
 port h = liftIO . alloc $! Port_ h
 
-err :: MonadIO m => Error -> m (Object n)
-err e = liftIO . alloc $! Error_ e
-
 cons :: MonadIO m => Object n -> Object n -> m (Object n)
 cons car cdr = liftIO do
   ref1 <- newIORef car
@@ -213,9 +186,6 @@ pattern Sym s <- Object_ (Sym_ s) _
 pattern Port :: Handle -> Object m
 pattern Port h <- Object_ (Port_ h) _
 
-pattern Error :: Error -> Object m
-pattern Error e <- Object_ (Error_ e) _
-
 pattern Cons :: ObjRef m -> ObjRef m -> Object m
 pattern Cons r1 r2 <- Object_ (Cons_ r1 r2) _
 
@@ -231,7 +201,7 @@ pattern Func e f <- Object_ (Func_ e f) _
 pattern Cont :: (Object m -> m (Object m)) -> Object m
 pattern Cont k <- Object_ (Cont_ k) _
 
-{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Error, Cons, Syn, Prim, Func, Cont #-}
+{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Prim, Func, Cont #-}
 
 loc :: Object n -> ObjLoc n
 loc (Object_ _ l) = l

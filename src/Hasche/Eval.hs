@@ -10,6 +10,7 @@ module Hasche.Eval
   ( MonadEval,
     EvalM,
     runEvalM,
+    Error (..),
     eval,
     evalMany,
   )
@@ -20,7 +21,10 @@ import Control.Monad.Cont
 import Control.Monad.Reader
 import Data.Foldable.Extra
 import Data.Maybe
+import Data.Text (Text)
+import Data.Text qualified as T
 import Hasche.Object
+import Hasche.Reader
 import Hasche.SExpr
 import Prelude hiding (lookup)
 
@@ -46,6 +50,23 @@ newtype EvalM r a = EvalM (ReaderT (Env (EvalM r)) (ContT r IO) a)
 
 runEvalM :: EvalM r a -> Env (EvalM r) -> (a -> IO r) -> IO r
 runEvalM (EvalM m) = runContT . runReaderT m
+
+-- Errors
+
+data Error
+  = ReadError ReadError
+  | FileError IOException
+  | SynError Text
+  | EvalError Text
+  | UserError Text
+  deriving (Show)
+
+instance Exception Error where
+  displayException (ReadError e) = "[READ ERROR]: " ++ displayException e
+  displayException (FileError e) = "[FILE ERROR]:" ++ displayException e
+  displayException (SynError e) = "[SYNTAX ERROR]: " ++ T.unpack e
+  displayException (EvalError e) = "[EVAL ERROR]: " ++ T.unpack e
+  displayException (UserError e) = "[USER ERROR]: " ++ T.unpack e
 
 -- Evaluation
 

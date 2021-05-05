@@ -14,7 +14,6 @@ module Hasche.Format
   )
 where
 
-import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.Text (Text)
@@ -38,7 +37,6 @@ data FormatOption m = FormatOption
     str :: Text -> Builder,
     sym :: Text -> Builder,
     port :: Builder,
-    err :: Obj.Error -> Builder,
     cons :: forall n. (Obj.Object n -> m Builder) -> Obj.Object n -> Obj.Object n -> m Builder,
     syn :: Builder,
     prim :: Builder,
@@ -57,7 +55,6 @@ format FormatOption {..} obj = TL.toStrict . TB.toLazyText <$!> format' obj
       Obj.Str s -> pure (str s)
       Obj.Sym s -> pure (sym s)
       Obj.Port _ -> pure port
-      Obj.Error e -> pure (err e)
       Obj.Cons r1 r2 -> formatCons r1 r2
       Obj.Syn _ -> pure syn
       Obj.Prim _ -> pure prim
@@ -78,7 +75,6 @@ writeOption =
       str = TB.fromString . show,
       sym = TB.fromText,
       port = "#<port>",
-      err = TB.fromString . displayException,
       cons = \fmt car cdr -> do
         let loop o1 o2 = do
               t1 <- fmt o1
