@@ -111,8 +111,6 @@ displayOption =
 
 -- Cyclic list detection
 
-type Label = Int
-
 data Decycled
   = DUndef
   | DEmpty
@@ -129,14 +127,16 @@ data Decycled
   | DCons (Maybe Label) Decycled Decycled
   deriving (Show)
 
-data VisitResult
-  = Seen
+type Label = Int
+
+data DecycleStatus
+  = InProgress
   | CycleDetected Label
-  | Finished Decycled
+  | Done Decycled
 
 decycle :: Obj.Object n -> IO Decycled
 decycle obj = do
-  table <- HT.new :: IO (BasicHashTable Loc VisitResult)
+  table <- HT.new :: IO (BasicHashTable Loc DecycleStatus)
   nextLabel <- newIORef (0 :: Label)
 
   let loop Obj.Undef = pure DUndef
@@ -151,24 +151,24 @@ decycle obj = do
       loop (Obj.Func _ _) = pure DFunc
       loop (Obj.Cont _) = pure DCont
       loop cons@(Obj.Cons car cdr) = do
-        HT.insert table (loc cons) Seen
+        HT.insert table (loc cons) InProgress
         d1 <- Obj.deref car >>= loop'
         d2 <- Obj.deref cdr >>= loop'
         Just res <- HT.lookup table (loc cons)
         let d = case res of
-              Seen -> DCons Nothing d1 d2
+              InProgress -> DCons Nothing d1 d2
               CycleDetected l -> DCons (Just l) d1 d2
-              Finished _ -> error "Unreachable"
-        HT.insert table (loc cons) (Finished d)
+              Done _ -> error "Unreachable"
+        HT.insert table (loc cons) (Done d)
         pure d
 
       loop' cons@(Obj.Cons _ _) = do
         mres <- HT.lookup table (loc cons)
         case mres of
           Nothing -> loop cons
-          Just (Finished d) -> pure d
+          Just (Done d) -> pure d
           Just (CycleDetected l) -> pure (DRef l)
-          Just Seen -> do
+          Just InProgress -> do
             l <- readIORef nextLabel <* modifyIORef' nextLabel succ
             HT.insert table (loc cons) (CycleDetected l)
             pure (DRef l)
