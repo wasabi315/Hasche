@@ -81,7 +81,7 @@ data ObjKind m
   | Port_ Handle
   | Cons_ (ObjRef m) (ObjRef m)
   | Syn_ (Env m -> [SExpr] -> m (Object m))
-  | Prim_ (Env m -> [Object m] -> m (Object m))
+  | Prim_ ([Object m] -> m (Object m))
   | Func_ (Env m) (Env m -> [Object m] -> m (Object m))
   | Cont_ (Object m -> m (Object m))
 
@@ -149,7 +149,7 @@ cons car cdr = liftIO do
 syn :: MonadIO m => (Env n -> [SExpr] -> n (Object n)) -> m (Object n)
 syn f = liftIO . alloc $! Syn_ f
 
-prim :: MonadIO m => (Env n -> [Object n] -> n (Object n)) -> m (Object n)
+prim :: MonadIO m => ([Object n] -> n (Object n)) -> m (Object n)
 prim f = liftIO . alloc $! Prim_ f
 
 func :: MonadIO m => Env n -> (Env n -> [Object n] -> n (Object n)) -> m (Object n)
@@ -185,7 +185,7 @@ pattern Cons r1 r2 <- (val -> Cons_ r1 r2)
 pattern Syn :: (Env m -> [SExpr] -> m (Object m)) -> Object m
 pattern Syn f <- (val -> Syn_ f)
 
-pattern Prim :: (Env m -> [Object m] -> m (Object m)) -> Object m
+pattern Prim :: ([Object m] -> m (Object m)) -> Object m
 pattern Prim f <- (val -> Prim_ f)
 
 pattern Func :: Env m -> (Env m -> [Object m] -> m (Object m)) -> Object m
