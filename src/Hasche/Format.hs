@@ -84,23 +84,24 @@ writeOption =
       func = "#<procedure>",
       cont = "#<continuation>",
       ref = \l -> "#" <> TB.decimal l <> "#",
-      cons = \fmt ml car cdr ->
-        let loop d DEmpty = fmt d
+      cons = \fmt ->
+        let fmtCons (Just l) car cdr =
+              "#" <> TB.decimal l <> "=(" <> loop car cdr <> ")"
+            fmtCons Nothing (DSym "quote") (DCons Nothing d DEmpty) =
+              "'" <> fmt d
+            fmtCons Nothing (DSym "quasiquote") (DCons Nothing d DEmpty) =
+              "`" <> fmt d
+            fmtCons Nothing (DSym "unquote") (DCons Nothing d DEmpty) =
+              "," <> fmt d
+            fmtCons Nothing (DSym "unquote-splicing") (DCons Nothing d DEmpty) =
+              ",@" <> fmt d
+            fmtCons Nothing car cdr =
+              "(" <> loop car cdr <> ")"
+
+            loop d DEmpty = fmt d
             loop d1 (DCons Nothing d2 d3) = fmt d1 <> " " <> loop d2 d3
             loop d1 d2 = fmt d1 <> " . " <> fmt d2
-         in case (ml, car, cdr) of
-              (Just l, _, _) ->
-                "#" <> TB.decimal l <> "=(" <> loop car cdr <> ")"
-              (Nothing, DSym "quote", DCons Nothing d DEmpty) ->
-                "'" <> fmt d
-              (Nothing, DSym "quasiquote", DCons Nothing d DEmpty) ->
-                "`" <> fmt d
-              (Nothing, DSym "unquote", DCons Nothing d DEmpty) ->
-                "," <> fmt d
-              (Nothing, DSym "unquote-splicing", DCons Nothing d DEmpty) ->
-                ",@" <> fmt d
-              _ ->
-                "(" <> loop car cdr <> ")"
+         in fmtCons
     }
 
 displayOption :: FormatOption
