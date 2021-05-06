@@ -85,9 +85,7 @@ writeOption =
       cont = "#<continuation>",
       ref = \l -> "#" <> TB.decimal l <> "#",
       cons = \fmt ->
-        let fmtCons (Just l) car cdr =
-              "#" <> TB.decimal l <> "=(" <> loop car cdr <> ")"
-            fmtCons Nothing (DSym "quote") (DCons Nothing d DEmpty) =
+        let fmtCons Nothing (DSym "quote") (DCons Nothing d DEmpty) =
               "'" <> fmt d
             fmtCons Nothing (DSym "quasiquote") (DCons Nothing d DEmpty) =
               "`" <> fmt d
@@ -95,12 +93,14 @@ writeOption =
               "," <> fmt d
             fmtCons Nothing (DSym "unquote-splicing") (DCons Nothing d DEmpty) =
               ",@" <> fmt d
+            fmtCons (Just l) car cdr =
+              "#" <> TB.decimal l <> "=(" <> fmtList car cdr <> ")"
             fmtCons Nothing car cdr =
-              "(" <> loop car cdr <> ")"
+              "(" <> fmtList car cdr <> ")"
 
-            loop d DEmpty = fmt d
-            loop d1 (DCons Nothing d2 d3) = fmt d1 <> " " <> loop d2 d3
-            loop d1 d2 = fmt d1 <> " . " <> fmt d2
+            fmtList d DEmpty = fmt d
+            fmtList d1 (DCons Nothing d2 d3) = fmt d1 <> " " <> fmtList d2 d3
+            fmtList d1 d2 = fmt d1 <> " . " <> fmt d2
          in fmtCons
     }
 
@@ -110,7 +110,7 @@ displayOption =
     { str = TB.fromText
     }
 
--- Cyclic list detection
+-- Decycling: replace circular reference with label
 
 data Decycled
   = DUndef
@@ -151,28 +151,23 @@ decycle obj = do
       loop (Obj.Prim _) = pure DPrim
       loop (Obj.Func _ _) = pure DFunc
       loop (Obj.Cont _) = pure DCont
-      loop cons@(Obj.Cons car cdr) = do
-        HT.insert table (loc cons) InProgress
-        d1 <- Obj.deref car >>= loop'
-        d2 <- Obj.deref cdr >>= loop'
-        Just res <- HT.lookup table (loc cons)
-        let d = case res of
-              InProgress -> DCons Nothing d1 d2
-              CycleDetected l -> DCons (Just l) d1 d2
-              Done _ -> error "Unreachable"
-        HT.insert table (loc cons) (Done d)
-        pure d
-
-      loop' cons@(Obj.Cons _ _) = do
-        mres <- HT.lookup table (loc cons)
-        case mres of
-          Nothing -> loop cons
-          Just (Done d) -> pure d
-          Just (CycleDetected l) -> pure (DRef l)
+      loop cons@(Obj.Cons car cdr) =
+        HT.lookup table (loc cons) >>= \case
+          Nothing -> do
+            HT.insert table (loc cons) InProgress
+            d1 <- Obj.deref car >>= loop
+            d2 <- Obj.deref cdr >>= loop
+            HT.mutate table (loc cons) \mres ->
+              let d = case mres of
+                    Just InProgress -> DCons Nothing d1 d2
+                    Just (CycleDetected l) -> DCons (Just l) d1 d2
+                    _ -> error "Unreachable"
+               in (Just (Done d), d)
           Just InProgress -> do
             l <- readIORef nextLabel <* modifyIORef' nextLabel succ
             HT.insert table (loc cons) (CycleDetected l)
             pure (DRef l)
-      loop' o = loop o
+          Just (CycleDetected l) -> pure (DRef l)
+          Just (Done d) -> pure d
 
   loop obj
