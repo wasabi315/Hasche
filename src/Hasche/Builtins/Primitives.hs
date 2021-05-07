@@ -138,22 +138,21 @@ eq :: MonadIO m => Object n -> Object n -> m (Object n)
 eq x y = pure if x == y then true else false
 
 eqv :: MonadIO m => Object n -> Object n -> m (Object n)
-eqv x y =
-  case (x, y) of
-    (Num n, Num m) -> pure if n == m then true else false
-    _ -> eq x y
+eqv (Num n) (Num m) = pure if n == m then true else false
+eqv x y = eq x y
 
 equal :: MonadIO m => Object n -> Object n -> m (Object n)
-equal x y = do
-  case (x, y) of
-    (Cons r1 r2, Cons r3 r4) -> do
-      o1 <- deref r1
+equal (Cons r1 r2) (Cons r3 r4) = do
+  o1 <- deref r1
+  o3 <- deref r3
+  t <- equal o1 o3
+  if t == false
+    then pure false
+    else do
       o2 <- deref r2
-      o3 <- deref r3
       o4 <- deref r4
-      t <- equal o1 o3
-      if t == true then equal o2 o4 else pure false
-    _ -> eqv x y
+      equal o2 o4
+equal x y = eqv x y
 
 primStrAppend :: (MonadIO m, MonadEval n) => m (Object n)
 primStrAppend =
