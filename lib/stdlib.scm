@@ -177,5 +177,3 @@
 (define-macro (delay x) `(lambda () ,x))
 (define (force x) (x))
 
-; Unicode syntax
-(define λ lambda)
