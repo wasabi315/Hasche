@@ -252,7 +252,7 @@ primWrite =
     undef <$ (write o >>= liftIO . T.hPutStr h)
 
 primExit :: (MonadIO m, MonadEval n) => m (Object n)
-primExit = mkPrim0 $ undef <$ liftIO exitSuccess
+primExit = mkPrim0 $ undef <$ throw ExitSuccess
 
 primError :: (MonadIO m, MonadEval n) => m (Object n)
 primError = prim $ traverse display >=> throw . UserError . T.concat

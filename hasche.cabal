@@ -38,6 +38,8 @@ executable hasche
     build-depends:    base ^>=4.14.1.0
                     , text
                     , optparse-applicative
+                    , async
+                    , unix
                     , hasche
 
     hs-source-dirs:   app

@@ -2,18 +2,22 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
-import Control.Exception
+import Control.Concurrent.Async
+import Control.Concurrent.MVar
+import Control.Exception (displayException)
+import Control.Monad
 import Data.Foldable
 import Data.Function
-import Data.Text qualified as T
 import Data.Text.IO qualified as T
 import Hasche.Driver as H
 import Options.Applicative
 import System.Exit
 import System.IO
+import System.Posix.Signals
 
 main :: IO ()
 main = do
@@ -41,31 +45,36 @@ parserInfo =
 exec :: FilePath -> IO ()
 exec path = do
   txt <- T.readFile path
-  interp <- H.newInterpreter path
-  interp txt >>= \case
-    Right _ -> exitSuccess
-    Left err -> hPrint stderr err *> exitFailure
+  interpret <- H.newInterpreter path
+  interruptible <- newInterruptibleBy keyboardSignal
+
+  interruptible (interpret txt) >>= \case
+    Nothing -> hPutStrLn stderr "Interrupted" *> exitFailure
+    Just (Right _) -> exitSuccess
+    Just (Left err) -> hPrint stderr err *> exitFailure
 
 repl :: IO ()
 repl = do
   hSetBuffering stdout NoBuffering
+  interruptible <- newInterruptibleBy keyboardSignal
+
   putStrLn headerText
 
-  interp <- H.newInterpreter "<interactive>"
+  interpret <- H.newInterpreter "<interactive>"
 
   fix \loop -> do
     putStr promptText
-    txt <- getLine
+    txt <- T.getLine
     if
         | txt == "" -> loop
         | txt == ":help" || txt == ":?" -> putStrLn helpText >> loop
         | txt == ":quit" || txt == ":q" -> pure ()
         | otherwise ->
           do
-            res <- interp (T.pack txt)
-            case res of
-              Left err -> putStrLn (displayException err)
-              Right obj -> H.display obj >>= T.putStrLn
+            interruptible (interpret txt) >>= \case
+              Nothing -> putStrLn "Interrupted"
+              Just (Left err) -> putStrLn (displayException err)
+              Just (Right obj) -> H.display obj >>= T.putStrLn
             loop
 
   exitSuccess
@@ -85,3 +94,20 @@ helpText =
 
 promptText :: String
 promptText = "hasche> "
+
+newInterruptibleBy :: Signal -> IO (IO a -> IO (Maybe a))
+newInterruptibleBy sig = do
+  sigInvoked <- newEmptyMVar
+  active <- newMVar False
+  let handler = do
+        p <- readMVar active
+        when p (putMVar sigInvoked ())
+  _ <- installHandler sig (Catch handler) Nothing
+
+  pure \ma -> do
+    modifyMVar_ active (const $ pure True)
+    ea <- race (takeMVar sigInvoked) ma
+    modifyMVar_ active (const $ pure False)
+    case ea of
+      Left _ -> pure Nothing
+      Right a -> pure (Just a)
