@@ -29,16 +29,16 @@ data Command
   = Repl
   | Exec FilePath
 
-withInfo :: String -> Parser a -> ParserInfo a
-withInfo desc opts = info (helper <*> opts) (progDesc desc)
+withInfo :: InfoMod a -> Parser a -> ParserInfo a
+withInfo m opts = info (helper <*> opts) m
 
 parserInfo :: ParserInfo Command
 parserInfo =
-  withInfo "A Mini-Scheme Interpreter" $
+  withInfo (header "hasche: A Mini-Scheme Interpreter") $
     subparser . fold $
-      [ command "repl" . withInfo "Start REPL session" $
+      [ command "repl" . withInfo (progDesc "Start REPL session") $
           pure Repl,
-        command "exec" . withInfo "Run program" $
+        command "exec" . withInfo (progDesc "Run program") $
           Exec <$> argument str (metavar "[FILE]")
       ]
 
