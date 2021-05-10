@@ -6,6 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Hasche.Format
   ( write,
@@ -23,65 +24,64 @@ import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as TB
 import Data.Text.Lazy.Builder.Int qualified as TB
-import Hasche.Box
-import Hasche.Object qualified as Obj
+import Hasche.Object
 
 -- Stringify Object
 
-write :: MonadIO m => Obj.Object n -> m Text
+write :: MonadIO m => Object n -> m Text
 write = format writeOption
 
-display :: MonadIO m => Obj.Object n -> m Text
+display :: MonadIO m => Object n -> m Text
 display = format displayOption
 
 data FormatOption = FormatOption
-  { undef :: Builder,
-    empty :: Builder,
-    bool :: Bool -> Builder,
-    num :: Integer -> Builder,
-    str :: Text -> Builder,
-    sym :: Text -> Builder,
-    port :: Builder,
-    syn :: Builder,
-    func :: Builder,
-    cont :: Builder,
-    ref :: Label -> Builder,
-    cons :: (Decycled -> Builder) -> Maybe Label -> Decycled -> Decycled -> Builder
+  { fmtUndef :: Builder,
+    fmtEmpty :: Builder,
+    fmtBool :: Bool -> Builder,
+    fmtNum :: Integer -> Builder,
+    fmtStr :: Text -> Builder,
+    fmtSym :: Text -> Builder,
+    fmtPort :: Builder,
+    fmtSyn :: Builder,
+    fmtFunc :: Builder,
+    fmtCont :: Builder,
+    fmtRef :: Label -> Builder,
+    fmtCons :: (Decycled -> Builder) -> Maybe Label -> Decycled -> Decycled -> Builder
   }
 
-format :: MonadIO m => FormatOption -> Obj.Object n -> m Text
+format :: MonadIO m => FormatOption -> Object n -> m Text
 format FormatOption {..} obj =
   TL.toStrict . TB.toLazyText . format' <$!> liftIO (decycle obj)
   where
     format' = \case
-      DUndef -> undef
-      DEmpty -> empty
-      DBool b -> bool b
-      DNum n -> num n
-      DStr s -> str s
-      DSym s -> sym s
-      DPort -> port
-      DSyn -> syn
-      DFunc -> func
-      DCont -> cont
-      DRef l -> ref l
-      DCons ml d1 d2 -> cons format' ml d1 d2
+      DUndef -> fmtUndef
+      DEmpty -> fmtEmpty
+      DBool b -> fmtBool b
+      DNum n -> fmtNum n
+      DStr s -> fmtStr s
+      DSym s -> fmtSym s
+      DPort -> fmtPort
+      DSyn -> fmtSyn
+      DFunc -> fmtFunc
+      DCont -> fmtCont
+      DRef l -> fmtRef l
+      DCons ml d1 d2 -> fmtCons format' ml d1 d2
 
 writeOption :: FormatOption
 writeOption =
   FormatOption
-    { undef = "#<undef>",
-      empty = "()",
-      bool = \b -> if b then "#t" else "#f",
-      num = TB.decimal,
-      str = TB.fromString . show,
-      sym = TB.fromText,
-      port = "#<port>",
-      syn = "#<syntax>",
-      func = "#<procedure>",
-      cont = "#<continuation>",
-      ref = \l -> "#" <> TB.decimal l <> "#",
-      cons = \fmt ->
+    { fmtUndef = "#<undef>",
+      fmtEmpty = "()",
+      fmtBool = \b -> if b then "#t" else "#f",
+      fmtNum = TB.decimal,
+      fmtStr = TB.fromString . show,
+      fmtSym = TB.fromText,
+      fmtPort = "#<port>",
+      fmtSyn = "#<syntax>",
+      fmtFunc = "#<procedure>",
+      fmtCont = "#<continuation>",
+      fmtRef = \l -> "#" <> TB.decimal l <> "#",
+      fmtCons = \fmt ->
         let fmtCons Nothing (DSym "quote") (DCons Nothing d DEmpty) =
               "'" <> fmt d
             fmtCons Nothing (DSym "quasiquote") (DCons Nothing d DEmpty) =
@@ -104,7 +104,7 @@ writeOption =
 displayOption :: FormatOption
 displayOption =
   writeOption
-    { str = TB.fromText
+    { fmtStr = TB.fromText
     }
 
 -- Decycling: replace circular reference with label
@@ -131,28 +131,28 @@ data DecycleStatus
   | CycleDetected Label
   | Done Decycled
 
-decycle :: Obj.Object n -> IO Decycled
+decycle :: Object n -> IO Decycled
 decycle obj = do
   table <- HT.new :: IO (BasicHashTable Loc DecycleStatus)
   nextLabel <- newIORef (0 :: Label)
 
-  let loop Obj.Undef = pure DUndef
-      loop Obj.Empty = pure DEmpty
-      loop (Obj.Bool b) = pure (DBool b)
-      loop (Obj.Num n) = pure (DNum n)
-      loop (Obj.Str s) = pure (DStr s)
-      loop (Obj.Sym s) = pure (DSym s)
-      loop (Obj.Port _) = pure DPort
-      loop (Obj.Syn _) = pure DSyn
-      loop (Obj.Func _) = pure DFunc
-      loop (Obj.Cont _) = pure DCont
-      loop cons@(Obj.Cons car cdr) =
-        HT.lookup table (loc cons) >>= \case
+  let loop Undef = pure DUndef
+      loop Empty = pure DEmpty
+      loop (Bool b) = pure (DBool b)
+      loop (Num n) = pure (DNum n)
+      loop (Str s) = pure (DStr s)
+      loop (Sym s) = pure (DSym s)
+      loop (Port _) = pure DPort
+      loop (Syn _) = pure DSyn
+      loop (Func _) = pure DFunc
+      loop (Cont _) = pure DCont
+      loop o@(Cons car cdr) =
+        HT.lookup table (loc o) >>= \case
           Nothing -> do
-            HT.insert table (loc cons) InProgress
-            d1 <- Obj.deref car >>= loop
-            d2 <- Obj.deref cdr >>= loop
-            HT.mutate table (loc cons) \mres ->
+            HT.insert table (loc o) InProgress
+            d1 <- deref car >>= loop
+            d2 <- deref cdr >>= loop
+            HT.mutate table (loc o) \mres ->
               let d = case mres of
                     Just InProgress -> DCons Nothing d1 d2
                     Just (CycleDetected l) -> DCons (Just l) d1 d2
@@ -160,7 +160,7 @@ decycle obj = do
                in (Just (Done d), d)
           Just InProgress -> do
             l <- readIORef nextLabel <* modifyIORef' nextLabel succ
-            HT.insert table (loc cons) (CycleDetected l)
+            HT.insert table (loc o) (CycleDetected l)
             pure (DRef l)
           Just (CycleDetected l) -> pure (DRef l)
           Just (Done d) -> pure d

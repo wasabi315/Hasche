@@ -44,6 +44,7 @@ module Hasche.Object
     childEnv,
     lookup,
     bind,
+    module Hasche.Box,
   )
 where
 
