@@ -116,9 +116,9 @@ synDefMacro = syn defMacro
         [SSym s, e] -> (s,) <$> eval env e
         (SList (SSym s : ps) mp : b) -> (s,) <$> mkClosure env (SList ps mp) b
         _ -> throw (SynError "Illegal define-macro syntax")
-      (env', transformer) <- expectFunc o1
+      t <- expectFunc o1
       o2 <- syn \env'' es' -> do
-        me <- traverse fromSExpr es' >>= transformer env' >>= toSExpr
+        me <- traverse fromSExpr es' >>= t >>= toSExpr
         case me of
           Nothing -> throw (EvalError "Failed to expand macro")
           Just e -> eval env'' e
@@ -137,10 +137,10 @@ mkClosure = \env e b -> do
     Just (ps, rest) -> do
       unless (isValidBody b) do
         throw (SynError "define cannot appear after expressions")
-      func env \env' args -> do
-        env'' <- childEnv env'
-        bindArgs env'' ps rest args
-        evalMany env'' b
+      func \args -> do
+        env' <- childEnv env
+        bindArgs env' ps rest args
+        evalMany env' b
   where
     extractParams :: SExpr -> Maybe ([Text], Maybe Text)
     extractParams (SSym s) = Just ([], Just s)
@@ -175,7 +175,7 @@ mkClosure = \env e b -> do
 
 -- utils
 
-expectFunc :: (MonadIO m, MonadThrow m) => Object n -> m (Env n, Env n -> [Object n] -> n (Object n))
+expectFunc :: (MonadIO m, MonadThrow m) => Object n -> m ([Object n] -> n (Object n))
 expectFunc = \case
-  Func e f -> pure (e, f)
-  _ -> throw (EvalError "expect closure")
+  Func f -> pure f
+  _ -> throw (EvalError "expect procedure")

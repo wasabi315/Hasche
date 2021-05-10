@@ -21,7 +21,6 @@ module Hasche.Object
     port,
     cons,
     syn,
-    prim,
     func,
     cont,
     pattern Undef,
@@ -33,7 +32,6 @@ module Hasche.Object
     pattern Port,
     pattern Cons,
     pattern Syn,
-    pattern Prim,
     pattern Func,
     pattern Cont,
     ObjRef,
@@ -81,8 +79,7 @@ data ObjKind m
   | Port_ Handle
   | Cons_ (ObjRef m) (ObjRef m)
   | Syn_ (Env m -> [SExpr] -> m (Object m))
-  | Prim_ ([Object m] -> m (Object m))
-  | Func_ (Env m) (Env m -> [Object m] -> m (Object m))
+  | Func_ ([Object m] -> m (Object m))
   | Cont_ (Object m -> m (Object m))
 
 -- Symbol table
@@ -149,11 +146,8 @@ cons car cdr = liftIO do
 syn :: MonadIO m => (Env n -> [SExpr] -> n (Object n)) -> m (Object n)
 syn f = liftIO . alloc $! Syn_ f
 
-prim :: MonadIO m => ([Object n] -> n (Object n)) -> m (Object n)
-prim f = liftIO . alloc $! Prim_ f
-
-func :: MonadIO m => Env n -> (Env n -> [Object n] -> n (Object n)) -> m (Object n)
-func e f = liftIO . alloc $! Func_ e f
+func :: MonadIO m => ([Object n] -> n (Object n)) -> m (Object n)
+func f = liftIO . alloc $! Func_ f
 
 cont :: MonadIO m => (Object n -> n (Object n)) -> m (Object n)
 cont k = liftIO . alloc $! Cont_ k
@@ -185,16 +179,13 @@ pattern Cons r1 r2 <- (val -> Cons_ r1 r2)
 pattern Syn :: (Env m -> [SExpr] -> m (Object m)) -> Object m
 pattern Syn f <- (val -> Syn_ f)
 
-pattern Prim :: ([Object m] -> m (Object m)) -> Object m
-pattern Prim f <- (val -> Prim_ f)
-
-pattern Func :: Env m -> (Env m -> [Object m] -> m (Object m)) -> Object m
-pattern Func e f <- (val -> Func_ e f)
+pattern Func :: ([Object m] -> m (Object m)) -> Object m
+pattern Func f <- (val -> Func_ f)
 
 pattern Cont :: (Object m -> m (Object m)) -> Object m
 pattern Cont k <- (val -> Cont_ k)
 
-{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Prim, Func, Cont #-}
+{-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Func, Cont #-}
 
 -- utils
 

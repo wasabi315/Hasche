@@ -26,57 +26,57 @@ builtinEnv = do
   bind e "set!" =<< synSet
   bind e "lambda" =<< synLambda
 
-  bind e "eval" =<< primEval
-  bind e "apply" =<< primApply
+  bind e "eval" =<< funcEval
+  bind e "apply" =<< funcApply
 
-  bind e "null?" =<< primIsNull
-  bind e "bool?" =<< primIsBool
-  bind e "number?" =<< primIsNum
-  bind e "string?" =<< primIsStr
-  bind e "symbol?" =<< primIsSym
-  bind e "pair?" =<< primIsPair
-  bind e "procedure?" =<< primIsProc
+  bind e "null?" =<< funcIsNull
+  bind e "bool?" =<< funcIsBool
+  bind e "number?" =<< funcIsNum
+  bind e "string?" =<< funcIsStr
+  bind e "symbol?" =<< funcIsSym
+  bind e "pair?" =<< funcIsPair
+  bind e "procedure?" =<< funcIsProc
 
-  bind e "+" =<< primAdd
-  bind e "-" =<< primSub
-  bind e "*" =<< primMul
-  bind e "/" =<< primDiv
-  bind e "=" =<< primNumEq
-  bind e "<" =<< primLt
-  bind e "<=" =<< primLe
-  bind e ">" =<< primGt
-  bind e ">=" =<< primGe
+  bind e "+" =<< funcAdd
+  bind e "-" =<< funcSub
+  bind e "*" =<< funcMul
+  bind e "/" =<< funcDiv
+  bind e "=" =<< funcNumEq
+  bind e "<" =<< funcLt
+  bind e "<=" =<< funcLe
+  bind e ">" =<< funcGt
+  bind e ">=" =<< funcGe
 
-  bind e "eq?" =<< primEq
-  bind e "eqv?" =<< primEqv
-  bind e "equal?" =<< primEqual
+  bind e "eq?" =<< funcEq
+  bind e "eqv?" =<< funcEqv
+  bind e "equal?" =<< funcEqual
 
-  bind e "string-append" =<< primStrAppend
-  bind e "string->number" =<< primStrNum
-  bind e "number->string" =<< primNumStr
-  bind e "string->symbol" =<< primStrSym
-  bind e "symbol->string" =<< primSymStr
+  bind e "string-append" =<< funcStrAppend
+  bind e "string->number" =<< funcStrNum
+  bind e "number->string" =<< funcNumStr
+  bind e "string->symbol" =<< funcStrSym
+  bind e "symbol->string" =<< funcSymStr
 
-  bind e "gensym" =<< primGensym
+  bind e "gensym" =<< funcGensym
 
-  bind e "cons" =<< primCons
-  bind e "car" =<< primCar
-  bind e "cdr" =<< primCdr
-  bind e "set-car!" =<< primSetCar
-  bind e "set-cdr!" =<< primSetCdr
+  bind e "cons" =<< funcCons
+  bind e "car" =<< funcCar
+  bind e "cdr" =<< funcCdr
+  bind e "set-car!" =<< funcSetCar
+  bind e "set-cdr!" =<< funcSetCdr
 
-  bind e "call/cc" =<< primCallCC
+  bind e "call/cc" =<< funcCallCC
 
-  bind e "open-input-file" =<< primOpenInputFile
-  bind e "open-output-file" =<< primOpenOutputFile
-  bind e "close-input-port" =<< primCloseInputPort
-  bind e "close-output-port" =<< primCloseOutputPort
-  bind e "read" =<< primRead
-  bind e "display" =<< primDisplay
-  bind e "write" =<< primWrite
+  bind e "open-input-file" =<< funcOpenInputFile
+  bind e "open-output-file" =<< funcOpenOutputFile
+  bind e "close-input-port" =<< funcCloseInputPort
+  bind e "close-output-port" =<< funcCloseOutputPort
+  bind e "read" =<< funcRead
+  bind e "display" =<< funcDisplay
+  bind e "write" =<< funcWrite
 
-  bind e "error" =<< primError
+  bind e "error" =<< funcError
 
-  bind e "exit" =<< primExit
+  bind e "exit" =<< funcExit
 
   pure e

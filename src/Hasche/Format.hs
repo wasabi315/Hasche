@@ -43,7 +43,6 @@ data FormatOption = FormatOption
     sym :: Text -> Builder,
     port :: Builder,
     syn :: Builder,
-    prim :: Builder,
     func :: Builder,
     cont :: Builder,
     ref :: Label -> Builder,
@@ -63,7 +62,6 @@ format FormatOption {..} obj =
       DSym s -> sym s
       DPort -> port
       DSyn -> syn
-      DPrim -> prim
       DFunc -> func
       DCont -> cont
       DRef l -> ref l
@@ -80,7 +78,6 @@ writeOption =
       sym = TB.fromText,
       port = "#<port>",
       syn = "#<syntax>",
-      prim = "#<primitive>",
       func = "#<procedure>",
       cont = "#<continuation>",
       ref = \l -> "#" <> TB.decimal l <> "#",
@@ -121,7 +118,6 @@ data Decycled
   | DSym Text
   | DPort
   | DSyn
-  | DPrim
   | DFunc
   | DCont
   | DRef Label
@@ -148,8 +144,7 @@ decycle obj = do
       loop (Obj.Sym s) = pure (DSym s)
       loop (Obj.Port _) = pure DPort
       loop (Obj.Syn _) = pure DSyn
-      loop (Obj.Prim _) = pure DPrim
-      loop (Obj.Func _ _) = pure DFunc
+      loop (Obj.Func _) = pure DFunc
       loop (Obj.Cont _) = pure DCont
       loop cons@(Obj.Cons car cdr) =
         HT.lookup table (loc cons) >>= \case

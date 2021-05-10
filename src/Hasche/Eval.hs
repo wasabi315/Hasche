@@ -86,8 +86,7 @@ eval env (SList (x : xs) Nothing) = do
   obj <- eval env x
   case obj of
     Syn f -> f env xs
-    Prim f -> traverse (eval env) xs >>= f
-    Func env' f -> traverse (eval env) xs >>= f env'
+    Func f -> traverse (eval env) xs >>= f
     Cont k -> do
       traverse (eval env) xs >>= \case
         [arg] -> k arg

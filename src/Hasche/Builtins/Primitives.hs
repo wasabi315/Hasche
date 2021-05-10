@@ -23,19 +23,19 @@ import Hasche.SExpr
 import System.Exit
 import System.IO
 
--- primitive functions
+-- funcitive functions
 
-primEval :: (MonadIO m, MonadEval n) => m (Object n)
-primEval =
-  mkPrim1 \o -> do
+funcEval :: (MonadIO m, MonadEval n) => m (Object n)
+funcEval =
+  mkFunc1 \o -> do
     me <- toSExpr o
     case me of
       Nothing -> throw (EvalError "Failed to convert object to expression")
       Just e -> ask >>= flip eval e
 
-primApply :: (MonadIO m, MonadEval n) => m (Object n)
-primApply =
-  prim \case
+funcApply :: (MonadIO m, MonadEval n) => m (Object n)
+funcApply =
+  func \case
     [] -> throw (EvalError "Arity Mismatch")
     [_] -> throw (EvalError "Arity Mismatch")
     f : xs -> do
@@ -51,88 +51,87 @@ primApply =
         pure $! (o1 : os)
       _ -> pure [o]
 
-primIsNull :: (MonadIO m, MonadEval n) => m (Object n)
-primIsNull =
-  mkPrim1 \case
+funcIsNull :: (MonadIO m, MonadEval n) => m (Object n)
+funcIsNull =
+  mkFunc1 \case
     Empty -> pure true
     _ -> pure false
 
-primIsBool :: (MonadIO m, MonadEval n) => m (Object n)
-primIsBool =
-  mkPrim1 \case
+funcIsBool :: (MonadIO m, MonadEval n) => m (Object n)
+funcIsBool =
+  mkFunc1 \case
     Bool _ -> pure true
     _ -> pure false
 
-primIsNum :: (MonadIO m, MonadEval n) => m (Object n)
-primIsNum =
-  mkPrim1 \case
+funcIsNum :: (MonadIO m, MonadEval n) => m (Object n)
+funcIsNum =
+  mkFunc1 \case
     Num _ -> pure true
     _ -> pure false
 
-primIsStr :: (MonadIO m, MonadEval n) => m (Object n)
-primIsStr =
-  mkPrim1 \case
+funcIsStr :: (MonadIO m, MonadEval n) => m (Object n)
+funcIsStr =
+  mkFunc1 \case
     Str _ -> pure true
     _ -> pure false
 
-primIsSym :: (MonadIO m, MonadEval n) => m (Object n)
-primIsSym =
-  mkPrim1 \case
+funcIsSym :: (MonadIO m, MonadEval n) => m (Object n)
+funcIsSym =
+  mkFunc1 \case
     Sym _ -> pure true
     _ -> pure false
 
-primIsPair :: (MonadIO m, MonadEval n) => m (Object n)
-primIsPair =
-  mkPrim1 \case
+funcIsPair :: (MonadIO m, MonadEval n) => m (Object n)
+funcIsPair =
+  mkFunc1 \case
     Cons _ _ -> pure true
     _ -> pure false
 
-primIsProc :: (MonadIO m, MonadEval n) => m (Object n)
-primIsProc =
-  mkPrim1 \case
-    Prim _ -> pure true
-    Func _ _ -> pure true
+funcIsProc :: (MonadIO m, MonadEval n) => m (Object n)
+funcIsProc =
+  mkFunc1 \case
+    Func _ -> pure true
     _ -> pure false
 
-primAdd :: (MonadIO m, MonadEval n) => m (Object n)
-primAdd = mkNumFoldPrim (+) 0
+funcAdd :: (MonadIO m, MonadEval n) => m (Object n)
+funcAdd = mkNumFoldFunc (+) 0
 
-primMul :: (MonadIO m, MonadEval n) => m (Object n)
-primMul = mkNumFoldPrim (*) 1
+funcMul :: (MonadIO m, MonadEval n) => m (Object n)
+funcMul = mkNumFoldFunc (*) 1
 
-primSub :: (MonadIO m, MonadEval n) => m (Object n)
-primSub =
-  prim $
+funcSub :: (MonadIO m, MonadEval n) => m (Object n)
+funcSub =
+  func $
     traverse expectNum >=> \case
       [] -> throw (EvalError "expect at least one number")
       n : ns -> num $! n - sum ns
 
-primDiv :: (MonadIO m, MonadEval n) => m (Object n)
-primDiv =
-  prim $
+funcDiv :: (MonadIO m, MonadEval n) => m (Object n)
+funcDiv =
+  func $
     traverse expectNum >=> \case
       [] -> throw (EvalError "expect at least one number")
       n : ns -> num $! n - product ns
 
-primNumEq :: (MonadIO m, MonadEval n) => m (Object n)
-primNumEq = mkNumBinPred (==)
+funcNumEq :: (MonadIO m, MonadEval n) => m (Object n)
+funcNumEq = mkNumBinPred (==)
 
-primGt :: (MonadIO m, MonadEval n) => m (Object n)
-primGt = mkNumBinPred (>)
+funcGt :: (MonadIO m, MonadEval n) => m (Object n)
+funcGt = mkNumBinPred (>)
 
-primGe :: (MonadIO m, MonadEval n) => m (Object n)
-primGe = mkNumBinPred (>=)
+funcGe :: (MonadIO m, MonadEval n) => m (Object n)
+funcGe = mkNumBinPred (>=)
 
-primLt :: (MonadIO m, MonadEval n) => m (Object n)
-primLt = mkNumBinPred (<)
+funcLt :: (MonadIO m, MonadEval n) => m (Object n)
+funcLt = mkNumBinPred (<)
 
-primLe :: (MonadIO m, MonadEval n) => m (Object n)
-primLe = mkNumBinPred (<=)
+funcLe :: (MonadIO m, MonadEval n) => m (Object n)
+funcLe = mkNumBinPred (<=)
 
-primEq, primEqv, primEqual :: (MonadIO m, MonadEval n) => m (Object n)
-primEq = mkPrim2 eq
-primEqv = mkPrim2 eqv
-primEqual = mkPrim2 equal
+funcEq, funcEqv, funcEqual :: (MonadIO m, MonadEval n) => m (Object n)
+funcEq = mkFunc2 eq
+funcEqv = mkFunc2 eqv
+funcEqual = mkFunc2 equal
 
 eq :: MonadIO m => Object n -> Object n -> m (Object n)
 eq x y = pure if x == y then true else false
@@ -154,76 +153,76 @@ equal (Cons r1 r2) (Cons r3 r4) = do
       equal o2 o4
 equal x y = eqv x y
 
-primStrAppend :: (MonadIO m, MonadEval n) => m (Object n)
-primStrAppend =
-  prim $
+funcStrAppend :: (MonadIO m, MonadEval n) => m (Object n)
+funcStrAppend =
+  func $
     traverse expectStr >=> \ts -> str $! T.concat ts
 
-primStrNum :: (MonadIO m, MonadEval n) => m (Object n)
-primStrNum =
-  mkPrim1 $
+funcStrNum :: (MonadIO m, MonadEval n) => m (Object n)
+funcStrNum =
+  mkFunc1 $
     expectStr >=> \s -> case readSNum s of
       Just (SNum n) -> num n
       _ -> throw (EvalError "Failed to convert string to number")
 
-primNumStr :: (MonadIO m, MonadEval n) => m (Object n)
-primNumStr = mkPrim1 $ expectNum >=> str . T.pack . show
+funcNumStr :: (MonadIO m, MonadEval n) => m (Object n)
+funcNumStr = mkFunc1 $ expectNum >=> str . T.pack . show
 
-primStrSym :: (MonadIO m, MonadEval n) => m (Object n)
-primStrSym = mkPrim1 $ expectStr >=> sym
+funcStrSym :: (MonadIO m, MonadEval n) => m (Object n)
+funcStrSym = mkFunc1 $ expectStr >=> sym
 
-primSymStr :: (MonadIO m, MonadEval n) => m (Object n)
-primSymStr = mkPrim1 $ expectSym >=> str
+funcSymStr :: (MonadIO m, MonadEval n) => m (Object n)
+funcSymStr = mkFunc1 $ expectSym >=> str
 
-primGensym :: (MonadIO m, MonadEval n) => m (Object n)
-primGensym = mkPrim0 gensym
+funcGensym :: (MonadIO m, MonadEval n) => m (Object n)
+funcGensym = mkFunc0 gensym
 
-primCons :: (MonadIO m, MonadEval n) => m (Object n)
-primCons = mkPrim2 cons
+funcCons :: (MonadIO m, MonadEval n) => m (Object n)
+funcCons = mkFunc2 cons
 
-primCar :: (MonadIO m, MonadEval n) => m (Object n)
-primCar = mkPrim1 $ expectCons >=> deref . fst
+funcCar :: (MonadIO m, MonadEval n) => m (Object n)
+funcCar = mkFunc1 $ expectCons >=> deref . fst
 
-primCdr :: (MonadIO m, MonadEval n) => m (Object n)
-primCdr = mkPrim1 $ expectCons >=> deref . snd
+funcCdr :: (MonadIO m, MonadEval n) => m (Object n)
+funcCdr = mkFunc1 $ expectCons >=> deref . snd
 
-primSetCar :: (MonadIO m, MonadEval n) => m (Object n)
-primSetCar =
-  mkPrim2 \x y -> do
+funcSetCar :: (MonadIO m, MonadEval n) => m (Object n)
+funcSetCar =
+  mkFunc2 \x y -> do
     (car, _) <- expectCons x
     undef <$ (car .= y)
 
-primSetCdr :: (MonadIO m, MonadEval n) => m (Object n)
-primSetCdr =
-  mkPrim2 \x y -> do
+funcSetCdr :: (MonadIO m, MonadEval n) => m (Object n)
+funcSetCdr =
+  mkFunc2 \x y -> do
     (_, cdr) <- expectCons x
     undef <$ (cdr .= y)
 
-primCallCC :: (MonadIO m, MonadEval n) => m (Object n)
-primCallCC =
-  mkPrim1 \o ->
+funcCallCC :: (MonadIO m, MonadEval n) => m (Object n)
+funcCallCC =
+  mkFunc1 \o ->
     callCC \k -> do
       c <- cont k
       apply o [c]
 
-primOpenInputFile :: (MonadIO m, MonadEval n) => m (Object n)
-primOpenInputFile = mkFileOpenPrim ReadMode
+funcOpenInputFile :: (MonadIO m, MonadEval n) => m (Object n)
+funcOpenInputFile = mkFileOpenFunc ReadMode
 
-primOpenOutputFile :: (MonadIO m, MonadEval n) => m (Object n)
-primOpenOutputFile = mkFileOpenPrim WriteMode
+funcOpenOutputFile :: (MonadIO m, MonadEval n) => m (Object n)
+funcOpenOutputFile = mkFileOpenFunc WriteMode
 
-primCloseInputPort :: (MonadIO m, MonadEval n) => m (Object n)
-primCloseInputPort =
-  mkPrim1 \o -> do
+funcCloseInputPort :: (MonadIO m, MonadEval n) => m (Object n)
+funcCloseInputPort =
+  mkFunc1 \o -> do
     h <- expectPort o
     undef <$ liftIO (hClose h)
 
-primCloseOutputPort :: (MonadIO m, MonadEval n) => m (Object n)
-primCloseOutputPort = primCloseInputPort
+funcCloseOutputPort :: (MonadIO m, MonadEval n) => m (Object n)
+funcCloseOutputPort = funcCloseInputPort
 
-primRead :: (MonadIO m, MonadEval n) => m (Object n)
-primRead =
-  prim \os -> do
+funcRead :: (MonadIO m, MonadEval n) => m (Object n)
+funcRead =
+  func \os -> do
     h <- case os of
       [] -> pure stdin
       [o] -> expectPort o
@@ -233,66 +232,66 @@ primRead =
       Left e -> throw (ReadError e)
       Right es -> foldrM (\e o -> fromSExpr e >>= flip cons o) empty es
 
-primDisplay :: (MonadIO m, MonadEval n) => m (Object n)
-primDisplay =
-  prim \os -> do
+funcDisplay :: (MonadIO m, MonadEval n) => m (Object n)
+funcDisplay =
+  func \os -> do
     (o, h) <- case os of
       [o] -> pure (o, stdout)
       [o1, o2] -> (o1,) <$> expectPort o2
       _ -> throw (EvalError "ArityMismatch")
     undef <$ (display o >>= liftIO . T.hPutStr h)
 
-primWrite :: (MonadIO m, MonadEval n) => m (Object n)
-primWrite =
-  prim \os -> do
+funcWrite :: (MonadIO m, MonadEval n) => m (Object n)
+funcWrite =
+  func \os -> do
     (o, h) <- case os of
       [o] -> pure (o, stdout)
       [o1, o2] -> (o1,) <$> expectPort o2
       _ -> throw (EvalError "ArityMismatch")
     undef <$ (write o >>= liftIO . T.hPutStr h)
 
-primExit :: (MonadIO m, MonadEval n) => m (Object n)
-primExit = mkPrim0 $ undef <$ throw ExitSuccess
+funcExit :: (MonadIO m, MonadEval n) => m (Object n)
+funcExit = mkFunc0 $ undef <$ throw ExitSuccess
 
-primError :: (MonadIO m, MonadEval n) => m (Object n)
-primError = prim $ traverse display >=> throw . UserError . T.concat
+funcError :: (MonadIO m, MonadEval n) => m (Object n)
+funcError = func $ traverse display >=> throw . UserError . T.concat
 
 -- smart constructors
 
-mkPrim0 :: (MonadIO m, MonadEval n) => n (Object n) -> m (Object n)
-mkPrim0 x =
-  prim \case
+mkFunc0 :: (MonadIO m, MonadEval n) => n (Object n) -> m (Object n)
+mkFunc0 x =
+  func \case
     [] -> x
     _ -> throw (EvalError "Arity Mismatch")
 
-mkPrim1 :: (MonadIO m, MonadEval n) => (Object n -> n (Object n)) -> m (Object n)
-mkPrim1 f =
-  prim \case
+mkFunc1 :: (MonadIO m, MonadEval n) => (Object n -> n (Object n)) -> m (Object n)
+mkFunc1 f =
+  func \case
     [o] -> f o
     _ -> throw (EvalError "Arity Mismatch")
 
-mkPrim2 :: (MonadIO m, MonadEval n) => (Object n -> Object n -> n (Object n)) -> m (Object n)
-mkPrim2 f =
-  prim \case
+mkFunc2 :: (MonadIO m, MonadEval n) => (Object n -> Object n -> n (Object n)) -> m (Object n)
+mkFunc2 f =
+  func \case
     [o1, o2] -> f o1 o2
     _ -> throw (EvalError "Arity Mismatch")
 
-mkNumFoldPrim :: (MonadIO m, MonadEval n) => (Integer -> Integer -> Integer) -> Integer -> m (Object n)
-mkNumFoldPrim f z =
-  prim \os -> do
+mkNumFoldFunc :: (MonadIO m, MonadEval n) => (Integer -> Integer -> Integer) -> Integer -> m (Object n)
+mkNumFoldFunc f z =
+  func \os -> do
     ns <- traverse expectNum os
     num $! foldl' f z ns
 
 mkNumBinPred :: (MonadIO m, MonadEval n) => (Integer -> Integer -> Bool) -> m (Object n)
 mkNumBinPred p =
-  mkPrim2 \o1 o2 -> do
+  mkFunc2 \o1 o2 -> do
     n1 <- expectNum o1
     n2 <- expectNum o2
     pure $! if p n1 n2 then true else false
 
-mkFileOpenPrim :: (MonadIO m, MonadEval n) => IOMode -> m (Object n)
-mkFileOpenPrim mode =
-  mkPrim1 \o -> do
+mkFileOpenFunc :: (MonadIO m, MonadEval n) => IOMode -> m (Object n)
+mkFileOpenFunc mode =
+  mkFunc1 \o -> do
     path <- expectStr o
     h <- liftIO $ openFile (T.unpack path) mode `catchIO` (throw . FileError)
     port h
@@ -329,8 +328,7 @@ expectCons = \case
 apply :: MonadEval m => Object m -> [Object m] -> m (Object m)
 apply x xs = do
   case x of
-    Prim f -> f xs
-    Func env' f -> f env' xs
+    Func f -> f xs
     Cont k ->
       case xs of
         [arg] -> k arg
