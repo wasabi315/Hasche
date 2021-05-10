@@ -10,6 +10,7 @@
 
 module Hasche.Object
   ( Object,
+    ObjRef,
     undef,
     empty,
     true,
@@ -34,9 +35,6 @@ module Hasche.Object
     pattern Syn,
     pattern Func,
     pattern Cont,
-    ObjRef,
-    deref,
-    (.=),
     fromSExpr,
     toSExpr,
     Env,
@@ -45,6 +43,7 @@ module Hasche.Object
     lookup,
     bind,
     module Hasche.Box,
+    module Hasche.Cell,
   )
 where
 
@@ -53,11 +52,11 @@ import Control.Monad.IO.Class
 import Data.Foldable
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
-import Data.IORef
 import Data.Maybe
 import Data.Text (Text)
 import GHC.IO.Unsafe
 import Hasche.Box
+import Hasche.Cell
 import Hasche.SExpr
 import System.IO
 import Text.StringRandom
@@ -65,8 +64,7 @@ import Prelude hiding (lookup)
 
 -- data types
 
--- for variable and cons cell
-type ObjRef m = IORef (Object m)
+type ObjRef m = Cell (Object m)
 
 type Object m = Box (ObjKind m)
 
@@ -139,10 +137,10 @@ port :: MonadIO m => Handle -> m (Object n)
 port h = liftIO . alloc $! Port_ h
 
 cons :: MonadIO m => Object n -> Object n -> m (Object n)
-cons car cdr = liftIO do
-  ref1 <- newIORef car
-  ref2 <- newIORef cdr
-  alloc $! Cons_ ref1 ref2
+cons car cdr = do
+  r1 <- newCell car
+  r2 <- newCell cdr
+  alloc $! Cons_ r1 r2
 
 syn :: MonadIO m => (Env n -> [SExpr] -> n (Object n)) -> m (Object n)
 syn f = liftIO . alloc $! Syn_ f
@@ -218,14 +216,6 @@ fromSExpr (SList es me) = do
   mo <- traverse fromSExpr me
   foldrM cons (fromMaybe empty mo) os
 
-deref :: MonadIO m => ObjRef n -> m (Object n)
-deref = liftIO . readIORef
-
-(.=) :: MonadIO m => ObjRef n -> Object n -> m ()
-r .= v = liftIO (modifyIORef' r (const v))
-
-infix 0 .=
-
 -- Env methods
 
 rootEnv :: MonadIO m => m (Env n)
@@ -245,4 +235,4 @@ lookup e i = lookup' e
           Nothing -> pure Nothing
 
 bind :: MonadIO m => Env n -> Text -> Object n -> m ()
-bind e i x = liftIO $ HT.insert (binds e) i =<< newIORef x
+bind e i = newCell >=> liftIO . HT.insert (binds e) i

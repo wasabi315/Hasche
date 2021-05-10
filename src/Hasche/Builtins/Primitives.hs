@@ -15,6 +15,7 @@ import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
+import Hasche.Cell
 import Hasche.Eval
 import Hasche.Format
 import Hasche.Object

@@ -10,6 +10,7 @@ module Hasche.Box
 where
 
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Unique
 
 -- Immutable box
@@ -22,8 +23,8 @@ type Loc = Unique
 instance Eq (Box a) where
   Box _ x == Box _ y = x == y
 
-alloc :: a -> IO (Box a)
-alloc x = Box x <$!> newUnique
+alloc :: MonadIO m => a -> m (Box a)
+alloc x = Box x <$!> liftIO newUnique
 
 loc :: Box a -> Loc
 loc (Box _ l) = l

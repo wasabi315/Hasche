@@ -14,6 +14,7 @@ import Control.Monad.Cont
 import Data.Foldable
 import Data.Maybe
 import Data.Text (Text)
+import Hasche.Cell
 import Hasche.Eval
 import Hasche.Object
 import Hasche.SExpr
