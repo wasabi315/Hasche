@@ -4,6 +4,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Hasche.Driver
   ( newInterpreter,
@@ -13,8 +14,8 @@ module Hasche.Driver
 where
 
 import Control.Exception.Safe
+import Data.FileEmbed
 import Data.Text (Text)
-import Data.Text.IO qualified as T
 import Hasche.Builtins
 import Hasche.Eval
 import Hasche.Format qualified as Fmt
@@ -34,7 +35,7 @@ newInterpreter fp = do
               (pure . Left)
 
   -- load standard library
-  res <- T.readFile "lib/stdlib.scm" >>= run
+  res <- run $(makeRelativeToProject "lib/stdlib.scm" >>= embedStringFile)
   case res of
     Left e -> throwString $ "Failed to load standard library: " ++ displayException e
     Right _ -> pure ()
