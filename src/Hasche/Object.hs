@@ -199,10 +199,8 @@ toSExpr = \case
     mx <- deref car >>= toSExpr
     my <- deref cdr >>= toSExpr
     case (mx, my) of
-      (Just x, Just y) ->
-        case y of
-          SList es me -> pure . Just $! SList (x : es) me
-          _ -> pure . Just $! SList [] (Just y)
+      (Just x, Just (SList es me)) -> pure . Just $! SList (x : es) me
+      (Just x, Just y) -> pure . Just $! SList [x] (Just y)
       _ -> pure Nothing
   _ -> pure Nothing
 
