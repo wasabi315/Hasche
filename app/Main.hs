@@ -13,7 +13,7 @@ import Control.Monad
 import Data.Foldable
 import Data.Function
 import Data.Text.IO qualified as T
-import Hasche.Driver as H
+import Hasche.Driver
 import Options.Applicative
 import System.Exit
 import System.IO
@@ -45,7 +45,7 @@ parserInfo =
 exec :: FilePath -> IO ()
 exec path = do
   txt <- T.readFile path
-  interpret <- H.newInterpreter path
+  interpret <- newInterpreter path
   interruptible <- newInterruptibleBy keyboardSignal
 
   interruptible (interpret txt) >>= \case
@@ -60,7 +60,7 @@ repl = do
 
   putStrLn headerText
 
-  interpret <- H.newInterpreter "<interactive>"
+  interpret <- newInterpreter "<interactive>"
 
   fix \loop -> do
     putStr promptText
@@ -74,7 +74,7 @@ repl = do
             interruptible (interpret txt) >>= \case
               Nothing -> putStrLn "Interrupted"
               Just (Left err) -> putStrLn (displayException err)
-              Just (Right obj) -> H.display obj >>= T.putStrLn
+              Just (Right obj) -> pretty obj >>= T.putStrLn
             loop
 
   exitSuccess

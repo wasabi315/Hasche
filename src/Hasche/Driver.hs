@@ -8,7 +8,8 @@
 
 module Hasche.Driver
   ( newInterpreter,
-    display,
+    pretty,
+    Object,
     Error,
   )
 where
@@ -18,11 +19,12 @@ import Data.FileEmbed
 import Data.Text (Text)
 import Hasche.Builtins
 import Hasche.Eval
-import Hasche.Format qualified as Fmt
-import Hasche.Object
+import Hasche.Format
+import Hasche.Object hiding (Object)
+import Hasche.Object qualified as Obj (Object)
 import Hasche.Reader
 
-newInterpreter :: FilePath -> IO (Text -> IO (Either Error SomeObj))
+newInterpreter :: FilePath -> IO (Text -> IO (Either Error Object))
 newInterpreter fp = do
   topEnv <- childEnv =<< builtinEnv
 
@@ -31,7 +33,7 @@ newInterpreter fp = do
           Left e -> pure (Left (ReadError e))
           Right prog -> do
             catch
-              (runEvalM (evalMany topEnv prog) topEnv (pure . Right . Obj))
+              (runEvalM (evalMany topEnv prog) topEnv (pure . Right . Object))
               (pure . Left)
 
   -- load standard library
@@ -42,7 +44,7 @@ newInterpreter fp = do
 
   pure run
 
-data SomeObj = forall m. Obj (Object m)
+data Object = forall m. Object (Obj.Object m)
 
-display :: SomeObj -> IO Text
-display (Obj obj) = Fmt.display obj
+pretty :: Object -> IO Text
+pretty (Object obj) = write obj
