@@ -87,9 +87,9 @@ eval env (SList (x : xs) Nothing) = do
   case obj of
     Syn f -> f env xs
     Func f -> traverse (eval env) xs >>= f
-    Cont k -> do
-      traverse (eval env) xs >>= \case
-        [arg] -> k arg
+    Cont k ->
+      case xs of
+        [y] -> eval env y >>= k
         _ -> throw (EvalError "Arity mismatch")
     _ -> throw (EvalError "Could not apply")
 eval _ (SList _ _) = throw (SynError "proper list required")
