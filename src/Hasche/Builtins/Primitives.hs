@@ -252,7 +252,7 @@ funcWrite =
     undef <$ (write o >>= liftIO . T.hPutStr h)
 
 funcExit :: (MonadIO m, MonadEval n) => m (Object n)
-funcExit = mkFunc0 $ undef <$ throw ExitSuccess
+funcExit = mkFunc0 (throw ExitSuccess)
 
 funcError :: (MonadIO m, MonadEval n) => m (Object n)
 funcError = func $ traverse display >=> throw . UserError . T.concat
@@ -288,7 +288,7 @@ mkNumBinPred p =
   mkFunc2 \o1 o2 -> do
     n1 <- expectNum o1
     n2 <- expectNum o2
-    pure $! if p n1 n2 then true else false
+    pure if p n1 n2 then true else false
 
 mkFileOpenFunc :: (MonadIO m, MonadEval n) => IOMode -> m (Object n)
 mkFileOpenFunc mode =
