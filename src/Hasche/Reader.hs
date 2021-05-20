@@ -79,18 +79,18 @@ num :: Reader SExpr
 num = SNum <$> L.signed (pure ()) L.decimal
 
 str :: Reader SExpr
-str = SStr <$> between (char '"') (char '"') (T.concat <$> many str')
+str = SStr . T.concat <$> between (char '"') (char '"') (many str')
   where
     str' =
       choice
         [ do
             _ <- char '\\'
             choice
-              [ "\n" <$ string "n",
-                "\r" <$ string "r",
-                "\t" <$ string "t",
-                "\"" <$ string "\"",
-                "\\" <$ string "\\"
+              [ "\n" <$ char 'n',
+                "\r" <$ char 'r',
+                "\t" <$ char 't',
+                "\"" <$ char '"',
+                "\\" <$ char '\\'
               ],
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
