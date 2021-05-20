@@ -61,7 +61,7 @@ synQuasiquote = syn quasiquote
       foldrM cons (fromMaybe empty mo) os
 
     qqs env (uqsExpr -> Just e) = eval env e >>= expectList
-    qqs env e = pure <$!> qq env e
+    qqs env e = pure <$> qq env e
 
 synUnquote :: (MonadIO m, MonadEval n) => m (Object n)
 synUnquote = syn unquote
@@ -94,7 +94,7 @@ synSet = syn set
     set env [SSym s, e] = do
       obj <- eval env e
       lookup env s >>= \case
-        Nothing -> throw (EvalError $! "Unbound identifier: " <> s)
+        Nothing -> throw (EvalError $ "Unbound identifier: " <> s)
         Just ref -> undef <$ (ref .= obj)
     set _ _ = throw (SynError "Illegal set! syntax")
 

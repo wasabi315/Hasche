@@ -101,18 +101,18 @@ data Env m = Env
 undef, empty, true, false :: Object m
 undef = unsafePerformIO (alloc Undef_)
 empty = unsafePerformIO (alloc Empty_)
-true = unsafePerformIO (alloc $! Bool_ True)
-false = unsafePerformIO (alloc $! Bool_ False)
+true = unsafePerformIO (alloc $ Bool_ True)
+false = unsafePerformIO (alloc $ Bool_ False)
 {-# NOINLINE undef #-}
 {-# NOINLINE empty #-}
 {-# NOINLINE true #-}
 {-# NOINLINE false #-}
 
 num :: MonadIO m => Integer -> m (Object n)
-num n = liftIO . alloc $! Num_ n
+num n = liftIO . alloc $ Num_ n
 
 str :: MonadIO m => Text -> m (Object n)
-str s = liftIO . alloc $! Str_ s
+str s = liftIO . alloc $ Str_ s
 
 -- May create new symbol
 sym :: MonadIO m => Text -> m (Object n)
@@ -120,7 +120,7 @@ sym s = liftIO $
   HT.mutateIO _symtbl s \case
     Just obj -> pure (Just obj, obj)
     Nothing -> do
-      obj <- alloc $! Sym_ s
+      obj <- alloc $ Sym_ s
       pure (Just obj, obj)
 
 gensym :: MonadIO m => m (Object n)
@@ -129,27 +129,27 @@ gensym = do
   mo <- liftIO $ HT.mutateIO _symtbl s \case
     Just obj -> pure (Just obj, Nothing)
     Nothing -> do
-      obj <- alloc $! Sym_ s
+      obj <- alloc $ Sym_ s
       pure (Just obj, Just obj)
   maybe gensym pure mo
 
 port :: MonadIO m => Handle -> m (Object n)
-port h = liftIO . alloc $! Port_ h
+port h = liftIO . alloc $ Port_ h
 
 cons :: MonadIO m => Object n -> Object n -> m (Object n)
 cons car cdr = do
   r1 <- newCell car
   r2 <- newCell cdr
-  alloc $! Cons_ r1 r2
+  alloc $ Cons_ r1 r2
 
 syn :: MonadIO m => (Env n -> [SExpr] -> n (Object n)) -> m (Object n)
-syn f = liftIO . alloc $! Syn_ f
+syn f = liftIO . alloc $ Syn_ f
 
 func :: MonadIO m => ([Object n] -> n (Object n)) -> m (Object n)
-func f = liftIO . alloc $! Func_ f
+func f = liftIO . alloc $ Func_ f
 
 cont :: MonadIO m => (Object n -> n (Object n)) -> m (Object n)
-cont k = liftIO . alloc $! Cont_ k
+cont k = liftIO . alloc $ Cont_ k
 
 -- object destructors
 
@@ -190,17 +190,17 @@ pattern Cont k <- (val -> Cont_ k)
 
 toSExpr :: MonadIO m => Object n -> m (Maybe SExpr)
 toSExpr = \case
-  Empty -> pure . Just $! SList [] Nothing
-  Bool b -> pure . Just $! SBool b
-  Num n -> pure . Just $! SNum n
-  Str s -> pure . Just $! SStr s
-  Sym s -> pure . Just $! SSym s
+  Empty -> pure . Just $ SList [] Nothing
+  Bool b -> pure . Just $ SBool b
+  Num n -> pure . Just $ SNum n
+  Str s -> pure . Just $ SStr s
+  Sym s -> pure . Just $ SSym s
   Cons car cdr -> do
     mx <- deref car >>= toSExpr
     my <- deref cdr >>= toSExpr
     case (mx, my) of
-      (Just x, Just (SList es me)) -> pure . Just $! SList (x : es) me
-      (Just x, Just y) -> pure . Just $! SList [x] (Just y)
+      (Just x, Just (SList es me)) -> pure . Just $ SList (x : es) me
+      (Just x, Just y) -> pure . Just $ SList [x] (Just y)
       _ -> pure Nothing
   _ -> pure Nothing
 
@@ -217,10 +217,10 @@ fromSExpr (SList es me) = do
 -- Env methods
 
 rootEnv :: MonadIO m => m (Env n)
-rootEnv = flip Env Nothing <$!> liftIO HT.new
+rootEnv = flip Env Nothing <$> liftIO HT.new
 
 childEnv :: MonadIO m => Env n -> m (Env n)
-childEnv env = flip Env (Just env) <$!> liftIO HT.new
+childEnv env = flip Env (Just env) <$> liftIO HT.new
 
 lookup :: MonadIO m => Env n -> Text -> m (Maybe (ObjRef n))
 lookup e i = lookup' e

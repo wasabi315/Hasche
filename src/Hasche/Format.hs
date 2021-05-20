@@ -14,7 +14,6 @@ module Hasche.Format
   )
 where
 
-import Control.Monad
 import Control.Monad.IO.Class
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
@@ -51,7 +50,7 @@ data FormatOption = FormatOption
 
 format :: MonadIO m => FormatOption -> Object n -> m Text
 format FormatOption {..} obj =
-  TL.toStrict . TB.toLazyText . format' <$!> liftIO (decycle obj)
+  TL.toStrict . TB.toLazyText . format' <$> liftIO (decycle obj)
   where
     format' = \case
       DUndef -> fmtUndef

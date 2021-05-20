@@ -80,7 +80,7 @@ eval _ (SNum n) = num n
 eval _ (SStr s) = str s
 eval env (SSym s) =
   lookup env s >>= \case
-    Nothing -> throw (EvalError $! "Unbound identifier: " <> s)
+    Nothing -> throw (EvalError $ "Unbound identifier: " <> s)
     Just ref -> deref ref
 eval env (SList (x : xs) Nothing) = do
   obj <- eval env x

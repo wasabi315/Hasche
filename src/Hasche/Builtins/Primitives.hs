@@ -40,7 +40,7 @@ funcApply =
     [] -> throw (EvalError "Arity Mismatch")
     [_] -> throw (EvalError "Arity Mismatch")
     f : xs -> do
-      args <- (init xs ++) <$!> pairToList (last xs)
+      args <- (init xs ++) <$> pairToList (last xs)
       apply f args
   where
     pairToList o = case o of
@@ -49,7 +49,7 @@ funcApply =
         o1 <- deref car
         o2 <- deref cdr
         os <- pairToList o2
-        pure $! (o1 : os)
+        pure (o1 : os)
       _ -> pure [o]
 
 funcIsNull :: (MonadIO m, MonadEval n) => m (Object n)
@@ -164,7 +164,7 @@ equal x y = eqv x y
 funcStrAppend :: (MonadIO m, MonadEval n) => m (Object n)
 funcStrAppend =
   func $
-    traverse expectStr >=> \ts -> str $! T.concat ts
+    traverse expectStr >=> \ts -> str $ T.concat ts
 
 funcStrNum :: (MonadIO m, MonadEval n) => m (Object n)
 funcStrNum =

@@ -11,7 +11,6 @@ module Hasche.Reader
   )
 where
 
-import Control.Monad
 import Data.Char
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -53,14 +52,14 @@ quoted = do
         SSym "unquote" <$ char ','
       ]
   e <- expr
-  pure $! SList [q, e] Nothing
+  pure $ SList [q, e] Nothing
 
 pairs :: Reader SExpr
 pairs = between (symbol "(") (symbol ")") do
   es <- some expr
   choice
     [ SList es Nothing <$ lookAhead (char ')'),
-      SList es . Just <$!> (symbol "." *> expr)
+      SList es . Just <$> (symbol "." *> expr)
     ]
 
 atom :: Reader SExpr
@@ -77,10 +76,10 @@ atom =
     ]
 
 num :: Reader SExpr
-num = SNum <$!> L.signed (pure ()) L.decimal
+num = SNum <$> L.signed (pure ()) L.decimal
 
 str :: Reader SExpr
-str = SStr <$!> between (char '"') (char '"') (T.concat <$!> many str')
+str = SStr <$> between (char '"') (char '"') (T.concat <$> many str')
   where
     str' =
       choice
@@ -104,7 +103,7 @@ ident = try do
       || c `elem` ("!$%&*+-./<=>?@^_" :: String)
   if x == "."
     then parseError (err o (utoks x))
-    else pure $! SSym x
+    else pure $ SSym x
 
 space :: Reader ()
 space =
