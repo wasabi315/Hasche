@@ -174,6 +174,26 @@
            (or ,@(cdr l)))))
 
 ; Lazy
-(define-macro (delay x) `(lambda () ,x))
-(define (force x) (x))
+(define (make-promise done? proc)
+  (list (cons done? proc)))
 
+(define-macro (delay-force expr)
+  `(make-promise #f (lambda () ,expr)))
+
+(define-macro (delay expr)
+  `(delay-force (make-promise #t ,expr)))
+
+(define (force p)
+  (if (promise-done? p)
+      (promise-value p)
+      (let ((p* ((promise-value p))))
+        (unless (promise-done? p)
+          (promise-update! p* p))
+        (force p))))
+
+(define (promise-done? x) (caar x))
+(define (promise-value x) (cdar x))
+(define (promise-update! new old)
+  (set-car! (car old) (promise-done? new))
+  (set-cdr! (car old) (promise-value new))
+  (set-car! new (car old)))
