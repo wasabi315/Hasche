@@ -24,13 +24,13 @@ import Hasche.Object hiding (Object)
 import Hasche.Object qualified as Obj (Object)
 import Hasche.Reader
 
-newInterpreter :: FilePath -> IO (Text -> IO (Either Error Object))
+newInterpreter :: FilePath -> IO (Text -> IO (Either SomeException Object))
 newInterpreter fp = do
   topEnv <- childEnv =<< builtinEnv
 
   let run txt =
         case readSExprList fp txt of
-          Left e -> pure (Left (ReadError e))
+          Left e -> pure (Left $ SomeException (ReadError e))
           Right prog -> do
             catch
               (runEvalM (evalMany topEnv prog) topEnv (pure . Right . Object))
