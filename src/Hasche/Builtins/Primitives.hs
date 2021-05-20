@@ -112,7 +112,14 @@ funcDiv =
   func $
     traverse expectNum >=> \case
       [] -> throw (EvalError "expect at least one number")
-      n : ns -> num $! n - product ns
+      n : ns -> num $! n `div` product ns
+
+funcMod :: (MonadIO m, MonadEval n) => m (Object n)
+funcMod =
+  mkFunc2 \x y -> do
+    n <- expectNum x
+    m <- expectNum y
+    num $! n `mod` m
 
 funcNumEq :: (MonadIO m, MonadEval n) => m (Object n)
 funcNumEq = mkNumBinPred (==)

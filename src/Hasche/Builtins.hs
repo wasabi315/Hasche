@@ -41,6 +41,7 @@ builtinEnv = do
   bind e "-" =<< funcSub
   bind e "*" =<< funcMul
   bind e "/" =<< funcDiv
+  bind e "modulo" =<< funcMod
   bind e "=" =<< funcNumEq
   bind e "<" =<< funcLt
   bind e "<=" =<< funcLe
