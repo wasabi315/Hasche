@@ -61,5 +61,5 @@ gensym
 ```
 ### Lazy evaluation
 ```
-delay, force
+delay, force, delay-force, promise-done?
 ```
