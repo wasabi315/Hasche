@@ -105,7 +105,7 @@ funcSub =
   func $
     traverse expectNum >=> \case
       [] -> throw (EvalError "expect at least one number")
-      n : ns -> num $! n - sum ns
+      n : ns -> num $! n - foldl' (+) 0 ns
 
 funcDiv :: (MonadIO m, MonadEval n) => m (Object n)
 funcDiv =
@@ -115,7 +115,7 @@ funcDiv =
       n : ns -> do
         when (0 `elem` ns) do
           throw (EvalError "divided by zero")
-        num $! n `div` product ns
+        num $! n `div` foldl' (*) 1 ns
 
 funcMod :: (MonadIO m, MonadEval n) => m (Object n)
 funcMod =
