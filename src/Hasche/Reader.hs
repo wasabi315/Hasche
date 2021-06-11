@@ -46,13 +46,12 @@ quoted :: Reader SExpr
 quoted = do
   q <-
     choice
-      [ SSym "quote" <$ char '\'',
-        SSym "quasiquote" <$ char '`',
-        SSym "unquote-splicing" <$ string ",@",
-        SSym "unquote" <$ char ','
+      [ SQuote <$ char '\'',
+        SQQ <$ char '`',
+        SUQS <$ string ",@",
+        SUQ <$ char ','
       ]
-  e <- expr
-  pure $ SList [q, e] Nothing
+  q <$> expr
 
 pairs :: Reader SExpr
 pairs = between (symbol "(") (symbol ")") do

@@ -34,11 +34,6 @@ synQuasiquote = syn quasiquote
     quasiquote env [e] = qq env e
     quasiquote _ _ = throw (SynError "Illegal quasiquote syntax")
 
-    uqExpr (SList [SSym "unquote", e] Nothing) = Just e
-    uqExpr _ = Nothing
-    uqsExpr (SList [SSym "unquote-splicing", e] Nothing) = Just e
-    uqsExpr _ = Nothing
-
     expectList :: MonadEval m => Object m -> m [Object m]
     expectList = \case
       Empty -> pure []
@@ -53,14 +48,14 @@ synQuasiquote = syn quasiquote
     qq _ (SNum n) = num n
     qq _ (SStr s) = str s
     qq _ (SSym s) = sym s
-    qq env (uqExpr -> Just e) = eval env e
-    qq _ (uqsExpr -> Just _) = throw (SynError "invalid unquote-splicing context")
+    qq env (SUQ e) = eval env e
+    qq _ (SUQS _) = throw (SynError "invalid unquote-splicing context")
     qq env (SList es me) = do
       os <- concat <$> traverse (qqs env) es
       mo <- traverse (qq env) me
       foldrM cons (fromMaybe empty mo) os
 
-    qqs env (uqsExpr -> Just e) = eval env e >>= expectList
+    qqs env (SUQS e) = eval env e >>= expectList
     qqs env e = pure <$> qq env e
 
 synUnquote :: (MonadIO m, MonadEval n) => m (Object n)
