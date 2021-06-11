@@ -51,7 +51,7 @@ exec path = do
   interruptible (interpret txt) >>= \case
     Nothing -> hPutStrLn stderr "Interrupted" *> exitFailure
     Just (Right _) -> exitSuccess
-    Just (Left err) -> hPrint stderr err *> exitFailure
+    Just (Left err) -> hPutStrLn stderr (displayException err) *> exitFailure
 
 repl :: IO ()
 repl = do
