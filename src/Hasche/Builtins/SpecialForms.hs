@@ -175,7 +175,7 @@ synMatch = syn match
 
     doMatch _ _ [] = pure undef
     doMatch env o ((p, e) : ps) = do
-      mbs <- matcher (parsePattern p) o
+      mbs <- matcher (parsePattern p) env o
       case mbs of
         Nothing -> doMatch env o ps
         Just bs -> M.traverseWithKey (bind env) bs *> eval env e
