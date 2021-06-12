@@ -20,6 +20,7 @@ import Control.Exception.Safe
 import Control.Monad.Cont
 import Control.Monad.Reader
 import Data.Foldable.Extra
+import Data.List.NonEmpty qualified as NE
 import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -74,7 +75,7 @@ evalMany :: MonadEval m => Env m -> [SExpr] -> m (Object m)
 evalMany env = traverseAndLast (eval env) undef
 
 eval :: MonadEval m => Env m -> SExpr -> m (Object m)
-eval _ (SList [] Nothing) = pure empty
+eval _ SEmpty = pure empty
 eval _ (SBool b) = pure if b then true else false
 eval _ (SNum n) = num n
 eval _ (SStr s) = str s
@@ -82,7 +83,7 @@ eval env (SSym s) =
   lookup env s >>= \case
     Nothing -> throw (EvalError $ "Unbound identifier: " <> s)
     Just ref -> deref ref
-eval env (SList (x : xs) Nothing) = do
+eval env (SList (x NE.:| xs)) = do
   obj <- eval env x
   case obj of
     Syn f -> f env xs
@@ -92,4 +93,4 @@ eval env (SList (x : xs) Nothing) = do
         [y] -> eval env y >>= k
         _ -> throw (EvalError "Arity mismatch")
     _ -> throw (EvalError "Could not apply")
-eval _ (SList _ _) = throw (SynError "proper list required")
+eval _ (SDList _ _) = throw (SynError "proper list required")

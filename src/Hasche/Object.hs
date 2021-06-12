@@ -49,7 +49,6 @@ where
 
 import Control.Monad
 import Control.Monad.IO.Class
-import Data.Foldable
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.Maybe
@@ -190,7 +189,7 @@ pattern Cont k <- (val -> Cont_ k)
 
 toSExpr :: MonadIO m => Object n -> m (Maybe SExpr)
 toSExpr = \case
-  Empty -> pure . Just $ SList [] Nothing
+  Empty -> pure . Just $ SEmpty
   Bool b -> pure . Just $ SBool b
   Num n -> pure . Just $ SNum n
   Str s -> pure . Just $ SStr s
@@ -198,21 +197,19 @@ toSExpr = \case
   Cons car cdr -> do
     mx <- deref car >>= toSExpr
     my <- deref cdr >>= toSExpr
-    case (mx, my) of
-      (Just x, Just (SList es me)) -> pure . Just $ SList (x : es) me
-      (Just x, Just y) -> pure . Just $ SList [x] (Just y)
-      _ -> pure Nothing
+    pure $ liftM2 SCons mx my
   _ -> pure Nothing
 
 fromSExpr :: MonadIO m => SExpr -> m (Object n)
+fromSExpr SEmpty = pure empty
 fromSExpr (SBool b) = pure if b then true else false
 fromSExpr (SNum n) = num n
 fromSExpr (SStr s) = str s
 fromSExpr (SSym s) = sym s
-fromSExpr (SList es me) = do
-  os <- traverse fromSExpr es
-  mo <- traverse fromSExpr me
-  foldrM cons (fromMaybe empty mo) os
+fromSExpr (SCons e1 e2) = do
+  o1 <- fromSExpr e1
+  o2 <- fromSExpr e2
+  cons o1 o2
 
 -- Env methods
 

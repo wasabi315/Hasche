@@ -2,6 +2,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Hasche.Reader
   ( readSExprList,
@@ -12,6 +13,7 @@ module Hasche.Reader
 where
 
 import Data.Char
+import Data.List.NonEmpty qualified as NE
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
@@ -55,16 +57,16 @@ quoted = do
 
 pairs :: Reader SExpr
 pairs = between (symbol "(") (symbol ")") do
-  es <- some expr
+  e : es <- some expr
   choice
-    [ SList es Nothing <$ lookAhead (char ')'),
-      SList es . Just <$> (symbol "." *> expr)
+    [ SList (e NE.:| es) <$ lookAhead (char ')'),
+      SDList (e NE.:| es) <$> (symbol "." *> expr)
     ]
 
 atom :: Reader SExpr
 atom =
   choice
-    [ SList [] Nothing <$ symbol "()",
+    [ SEmpty <$ symbol "()",
       SBool True <$ symbol "#true",
       SBool True <$ symbol "#t",
       SBool False <$ symbol "#false",

@@ -12,8 +12,8 @@ import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.Cont
 import Data.Foldable
+import Data.List.NonEmpty qualified as NE
 import Data.Maybe
-import Data.Text (Text)
 import Hasche.Cell
 import Hasche.Eval
 import Hasche.Object
@@ -44,19 +44,21 @@ synQuasiquote = syn quasiquote
       _ -> throw (EvalError "expect list")
 
     qq :: MonadEval m => Env m -> SExpr -> m (Object m)
+    qq _ SEmpty = pure empty
     qq _ (SBool b) = pure if b then true else false
     qq _ (SNum n) = num n
     qq _ (SStr s) = str s
     qq _ (SSym s) = sym s
     qq env (SUQ e) = eval env e
     qq _ (SUQS _) = throw (SynError "invalid unquote-splicing context")
-    qq env (SList es me) = do
-      os <- concat <$> traverse (qqs env) es
-      mo <- traverse (qq env) me
-      foldrM cons (fromMaybe empty mo) os
-
-    qqs env (SUQS e) = eval env e >>= expectList
-    qqs env e = pure <$> qq env e
+    qq env (SUQS e1 `SCons` e2) = do
+      os1 <- eval env e1 >>= expectList
+      os2 <- qq env e2
+      foldrM cons os2 os1
+    qq env (e1 `SCons` e2) = do
+      os1 <- qq env e1
+      os2 <- qq env e2
+      cons os1 os2
 
 synUnquote :: (MonadIO m, MonadEval n) => m (Object n)
 synUnquote = syn unquote
@@ -99,8 +101,8 @@ synDefine = syn define
     define env [SSym s, e] = do
       obj <- eval env e
       undef <$ bind env s obj
-    define env (SList (SSym s : ps) mp : b) = do
-      obj <- mkClosure env (SList ps mp) b
+    define env (SCons (SSym s) ps : b) = do
+      obj <- mkClosure env ps b
       undef <$ bind env s obj
     define _ _ = throw (SynError "Illegal define syntax")
 
@@ -110,7 +112,7 @@ synDefMacro = syn defMacro
     defMacro env es = do
       (s, o1) <- case es of
         [SSym s, e] -> (s,) <$> eval env e
-        (SList (SSym s : ps) mp : b) -> (s,) <$> mkClosure env (SList ps mp) b
+        (SCons (SSym s) ps : b) -> (s,) <$> mkClosure env ps b
         _ -> throw (SynError "Illegal define-macro syntax")
       t <- expectFunc o1
       o2 <- syn \env'' es' -> do
@@ -128,44 +130,33 @@ synLambda = syn lambda
 
 mkClosure :: MonadEval m => Env m -> SExpr -> [SExpr] -> m (Object m)
 mkClosure = \env e b -> do
-  case extractParams e of
-    Nothing -> throw (SynError "Illegal parameters")
-    Just (ps, rest) -> do
-      unless (isValidBody b) do
-        throw (SynError "define cannot appear after expressions")
-      func \args -> do
-        env' <- childEnv env
-        bindArgs env' ps rest args
-        evalMany env' b
+  binder <- argBinder e
+  unless (isValidBody b) do
+    throw (SynError "define cannot appear after expressions")
+  func \args -> do
+    env' <- childEnv env
+    binder env' args
+    evalMany env' b
   where
-    extractParams :: SExpr -> Maybe ([Text], Maybe Text)
-    extractParams (SSym s) = Just ([], Just s)
-    extractParams (SList es me) = do
-      ss <- traverse expectSSym es
-      ms <- traverse expectSSym me
-      pure (ss, ms)
-    extractParams _ = Nothing
-
-    expectSSym :: SExpr -> Maybe Text
-    expectSSym (SSym s) = Just s
-    expectSSym _ = Nothing
-
-    bindArgs :: MonadEval m => Env m -> [Text] -> Maybe Text -> [Object m] -> m ()
-    bindArgs _ [] Nothing [] = pure ()
-    bindArgs env [] (Just p) os = do
-      o <- foldrM cons empty os
-      bind env p o
-    bindArgs env (p : ps) mp (o : os) = do
-      bind env p o
-      bindArgs env ps mp os
-    bindArgs _ _ _ _ = throw (EvalError "Arity Mismatch")
+    argBinder :: MonadEval m => SExpr -> m (Env m -> [Object m] -> m ())
+    argBinder SEmpty = pure \_ os -> case os of
+      [] -> pure ()
+      _ -> throw (EvalError "Arity Mismatcch")
+    argBinder (SSym s) = pure \env os ->
+      foldrM cons empty os >>= bind env s
+    argBinder (SSym s `SCons` e) = do
+      binder <- argBinder e
+      pure \env os -> case os of
+        [] -> throw (EvalError "Arity Mismatch")
+        o : os' -> bind env s o *> binder env os'
+    argBinder _ = throw (SynError "Illegal parameters")
 
     -- body : (define ...)* expression*
     isValidBody :: [SExpr] -> Bool
     isValidBody = isJust . foldl' phi (Just True)
       where
         phi Nothing _ = Nothing
-        phi (Just isDefPart) (SList (SSym "define" : _) _) =
+        phi (Just isDefPart) (SList (SSym "define" NE.:| _)) =
           if isDefPart then Just True else Nothing
         phi _ _ = Just False
 
