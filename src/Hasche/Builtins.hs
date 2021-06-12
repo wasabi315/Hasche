@@ -26,6 +26,8 @@ builtinEnv = do
   bind e "set!" =<< synSet
   bind e "lambda" =<< synLambda
 
+  bind e "match" =<< synMatch
+
   bind e "eval" =<< funcEval
   bind e "apply" =<< funcApply
 

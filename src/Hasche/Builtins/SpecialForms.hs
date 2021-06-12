@@ -13,10 +13,12 @@ import Control.Monad
 import Control.Monad.Cont
 import Data.Foldable
 import Data.List.NonEmpty qualified as NE
+import Data.Map.Strict qualified as M
 import Data.Maybe
 import Hasche.Cell
 import Hasche.Eval
 import Hasche.Object
+import Hasche.Pattern
 import Hasche.SExpr
 import Prelude hiding (lookup)
 
@@ -159,6 +161,28 @@ mkClosure = \env e b -> do
         phi (Just isDefPart) (SList (SSym "define" NE.:| _)) =
           if isDefPart then Just True else Nothing
         phi _ _ = Just False
+
+synMatch :: (MonadIO m, MonadEval n) => m (Object n)
+synMatch = syn match
+  where
+    match _ [] = throw (SynError "Illegal syntax")
+    match env (e : cs) =
+      case parseClauses cs of
+        Nothing -> throw (SynError "Illegal syntax")
+        Just ps -> do
+          o <- eval env e
+          doMatch env o ps
+
+    doMatch _ _ [] = pure undef
+    doMatch env o ((p, e) : ps) = do
+      mbs <- matcher (parsePattern p) o
+      case mbs of
+        Nothing -> doMatch env o ps
+        Just bs -> M.traverseWithKey (bind env) bs *> eval env e
+
+    parseClauses = traverse \case
+      e1 `SCons` e2 `SCons` SEmpty -> Just (e1, e2)
+      _ -> Nothing
 
 -- utils
 
