@@ -37,17 +37,31 @@ parsePattern (SNum n) = PNum n
 parsePattern (SStr s) = PStr s
 parsePattern (SSym "_") = PIgnore
 parsePattern (SSym s) = PVar s
-parsePattern (SQuote SEmpty) = PEmpty
-parsePattern (SQuote (SBool b)) = PBool b
-parsePattern (SQuote (SNum n)) = PNum n
-parsePattern (SQuote (SStr s)) = PStr s
-parsePattern (SQuote (SSym s)) = PSym s
-parsePattern (SQuote (SCons e1 e2)) =
-  PCons (parsePattern $ SQuote e1) (parsePattern $ SQuote e2)
+parsePattern (SQuote e) = parseSExprPattern e
+parsePattern (SQQ e) = parseQuasiPattern e
 parsePattern (SSym "?" `SCons` SSym f `SCons` e `SCons` SEmpty) =
   PPred f (parsePattern e)
 parsePattern (e1 `SCons` SSym "..." `SCons` SEmpty) = PRest (parsePattern e1)
 parsePattern (SCons e1 e2) = PCons (parsePattern e1) (parsePattern e2)
+
+parseSExprPattern :: SExpr -> Pattern
+parseSExprPattern SEmpty = PEmpty
+parseSExprPattern (SBool b) = PBool b
+parseSExprPattern (SNum n) = PNum n
+parseSExprPattern (SStr s) = PStr s
+parseSExprPattern (SSym s) = PSym s
+parseSExprPattern (SCons e1 e2) =
+  PCons (parseSExprPattern e1) (parseSExprPattern e2)
+
+parseQuasiPattern :: SExpr -> Pattern
+parseQuasiPattern SEmpty = PEmpty
+parseQuasiPattern (SBool b) = PBool b
+parseQuasiPattern (SNum n) = PNum n
+parseQuasiPattern (SStr s) = PStr s
+parseQuasiPattern (SSym s) = PSym s
+parseQuasiPattern (SUQ e) = parsePattern e
+parseQuasiPattern (SCons e1 e2) =
+  PCons (parseQuasiPattern e1) (parseQuasiPattern e2)
 
 matcher :: MonadEval m => Pattern -> Env m -> Object m -> m (Maybe (Map Text (Object m)))
 matcher PIgnore = \_ _ -> pure . Just $ M.empty
