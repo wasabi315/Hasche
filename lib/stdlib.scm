@@ -58,12 +58,21 @@
           ((lambda () (f (car l)) (for-each f (cdr l))))
           ((lambda () (f l) ((lambda ())))))))
 
-(define (map f l)
-  (if (null? l)
-      ()
-      (if (pair? l)
-          (cons (f (car l)) (map f (cdr l)))
-          (f l))))
+(define (map f l . more)
+  (if (null? more)
+      (begin
+        (define (map1 l)
+          (if (null? l)
+              '()
+              (cons (f (car l)) (map1 (cdr l)))))
+        (map1 l))
+      (begin
+        (define (map-more l more)
+          (if (null? l)
+              '()
+              (cons (apply f (car l) (map car more))
+                    (map-more (cdr l) (map cdr more)))))
+        (map-more l more))))
 
 ; Input / Output
 (define (newline) (display "\n"))
@@ -75,103 +84,73 @@
   (for-each eval es))
 
 ; Basic Macros
-(define (check-let-binds binds)
-  (for-each
-    (lambda (binds)
-      (if (or (not (list? binds))
-              (not (= (length binds) 2)))
-          (error "invalid let syntax")))
-    binds))
+(define-macro (let . clauses)
+  (match clauses
+    (((? symbol? name) ((var init) ...) body ...)
+      `(letrec ((,name (lambda ,var ,@body))) (,name ,@init)))
+    ((((var init) ...) body ...)
+      `((lambda ,var ,@body) ,@init))
+    (_
+      (error "invalid let syntax"))))
 
-(define-macro (let . args)
-  (define (let-expander binds body)
-    (check-let-binds binds)
-    (begin
-      (define vars (map car binds))
-      (define inits (map cadr binds))
-      `((lambda ,vars ,@body) ,@inits)))
+(define-macro (let* . clauses)
+  (match clauses
+    ((() body ...)
+      `(begin ,@body))
+    ((((var init) bind ...) body ...)
+      `(let ((,var ,init)) (let* ,bind ,@body)))))
 
-  (define (named-let-expander name binds body)
-    (check-let-binds binds)
-    (begin
-      (define vars (map car binds))
-      (define inits (map cadr binds))
-      `(letrec ((,name (lambda ,vars ,@body))) (,name ,@inits))))
+(define-macro (letrec . clauses)
+  (match clauses
+    ((((var init) ...) body ...)
+      `(let
+        ,(map (lambda (v) `(,v ())) var)
+        ,@(map (lambda (v i) `(set! ,v ,i)) var init)
+        ,@body))))
 
-  (if (symbol? (car args))
-      (named-let-expander (car args) (cadr args) (cddr args))
-      (let-expander (car args) (cdr args))))
-
-(define-macro (let* binds . body)
-  (if (null? binds)
-      `(begin ,@body)
-      (begin
-        (check-let-binds binds)
-        (begin
-          (define var (car (car binds)))
-          (define init (cadr (car binds)))
-          (define rest-binds (cdr binds))
-          `(let ((,var ,init)) (let* ,rest-binds ,@body))))))
-
-(define-macro (letrec binds . body)
-  (check-let-binds binds)
-  (begin
-    (define inits
-      (map (lambda (binds) `(,(car binds) ())) binds))
-    (define sets
-      (map (lambda (binds) `(set! ,(car binds) ,(cadr binds))) binds))
-    `(let ,inits ,@sets ,@body)))
-
-(define-macro (cond . rows)
-  (define (expander rs)
-    (if (null? rs)
-        `(begin)
-        (begin
-          (define pred (caar rs))
-          (define clauses (cdar rs))
-          (define rest-rows (cdr rs))
-          (if (eq? pred 'else)
-              (if (not (null? rest-rows))
-                  (error "else block is allowed at most once in cond")
-                  `(begin ,@clauses))
-              `(if ,pred
-                  (begin ,@clauses)
-                  ,(expander rest-rows))))))
-  (if (null? rows)
-      (error "cond with no branches")
-      (expander rows)))
+(define-macro (cond . clauses)
+  (match clauses
+    (()
+      (error "cond with no arms"))
+    ((('else body ...))
+      `(begin ,@body))
+    (((pred body ...))
+      `(if ,pred (begin ,@body)))
+    ((('else _ ...) _ ...)
+      (error "else is not allowed here"))
+    (((pred body ...) rest ...)
+      `(if ,pred (begin ,@body) (cond ,@rest)))))
 
 (define-macro (begin . body) `((lambda () ,@body)))
 (define-macro (when test . body) `(if ,test (begin ,@body)))
 (define-macro (unless test . body) `(if (not ,test) (begin ,@body)))
 
-(define-macro (do binds test&exprs . body)
-  (define vars (map car binds))
-  (define inits (map cadr binds))
-  (define steps (map caddr binds))
-  (define test (car test&exprs))
-  (define exprs (cdr test&exprs))
-  (define sym (gensym))
-  `(letrec
-    ((,sym
-      (lambda ,vars
-        (if ,test
-            (begin ,@exprs)
-            (begin ,@body (,sym ,@steps))))))
-    (,sym ,@inits)))
+(define-macro (do . clauses)
+  (match clauses
+    ((((var init step) ...) (test expr ...) command ...)
+      (let ((sym (gensym)))
+           `(letrec
+              ((,sym
+                (lambda ,var
+                  (if ,test
+                      (begin ,@expr)
+                      (begin ,@command (,sym ,@step))))))
+              (,sym ,@init))))))
 
 (define-macro (and . l)
-  (if (null? l)
-      `#t
-      `(if ,(car l)
-           (and ,@(cdr l))
-           #f)))
+  (match l
+    (() #t)
+    ((test) test)
+    ((test1 test2 ...)
+      `(if ,test1 (and ,@test2) #f))))
+
 (define-macro (or . l)
-  (if (null? l)
-      `#f
-      `(if ,(car l)
-           #t
-           (or ,@(cdr l)))))
+  (match l
+    (() #f)
+    ((test) test)
+    ((test1 test2 ...)
+      (let ((sym (gensym)))
+           `(let ((,sym ,test1)) (if ,sym ,sym (or ,@test2)))))))
 
 ; Lazy
 (define (make-promise done? proc)
