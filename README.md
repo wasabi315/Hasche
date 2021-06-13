@@ -1,10 +1,12 @@
 # Hasche
+> /ˈhæʃ/: **Ha**skell & **Sche**me
+
 An interpreter for a subset of Scheme written in Haskell
 
 ## Features
 - REPL Session
 - `call/cc`
-- Legacy macros
+- Non-hygienic macros
 
 ## Usage
 ### Build
@@ -22,7 +24,7 @@ $ cabal exec hasche -- repl
 ## List of available syntax, macros & functions
 ### Special forms
 ```
-define, define-macro, set!, lambda, if, quote, quasiquote, unquote, unquote-splicing
+define, define-macro, set!, lambda, if, quote, quasiquote, unquote, unquote-splicing, match
 ```
 ### Basic macros
 ```
