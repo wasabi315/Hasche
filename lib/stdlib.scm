@@ -148,15 +148,13 @@
 (define-macro (and . l)
   (match l
     (() #t)
-    ((test) test)
-    ((test1 test2 ...)
+    ((test1 . test2)
       `(if ,test1 (and ,@test2) #f))))
 
 (define-macro (or . l)
   (match l
     (() #f)
-    ((test) test)
-    ((test1 test2 ...)
+    ((test1 . test2)
       (let ([sym (gensym)])
            `(let ([,sym ,test1]) (if ,sym ,sym (or ,@test2)))))))
 
