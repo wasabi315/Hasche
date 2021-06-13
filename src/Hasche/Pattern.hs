@@ -5,7 +5,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
-module Hasche.Pattern where
+module Hasche.Pattern
+  ( matcher,
+    parsePattern,
+  )
+where
 
 import Control.Monad
 import Data.Foldable
