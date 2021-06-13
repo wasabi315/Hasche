@@ -86,12 +86,12 @@
 ; Basic Macros
 (define-macro (let . clauses)
   (match clauses
-    (((? symbol? name) ([var init] ...) body ...)
-      `(letrec ([,name (lambda ,var ,@body)]) (,name ,@init)))
-    ((([var init] ...) body ...)
-      `((lambda ,var ,@body) ,@init))
-    (_
-      (error "invalid let syntax"))))
+    [((? symbol? name) ([var init] ...) body ...)
+      `(letrec ([,name (lambda ,var ,@body)]) (,name ,@init))]
+    [(([var init] ...) body ...)
+      `((lambda ,var ,@body) ,@init)]
+    [_
+      (error "invalid let syntax")]))
 
 (define-macro (let* . clauses)
   (match clauses
@@ -104,28 +104,28 @@
 
 (define-macro (letrec . clauses)
   (match clauses
-    ((([var init] ...) body ...)
+    [(([var init] ...) body ...)
       `(let
         ,(map (lambda (v) `[,v ()]) var)
         ,@(map (lambda (v i) `(set! ,v ,i)) var init)
-        ,@body))
-    (_
-      (error "invalid letrec syntax"))))
+        ,@body)]
+    [_
+      (error "invalid letrec syntax")]))
 
 (define-macro (cond . clauses)
   (match clauses
-    (()
-      (error "cond with no arms"))
-    ((('else body ...))
-      `(begin ,@body))
-    (((pred body ...))
-      `(if ,pred (begin ,@body)))
-    ((('else _ ...) _ ...)
-      (error "else is not allowed here"))
-    (((pred body ...) rest ...)
-      `(if ,pred (begin ,@body) (cond ,@rest)))
-    (_
-      (error "invalid cond syntax"))))
+    [()
+      (error "cond with no arms")]
+    [(('else body ...))
+      `(begin ,@body)]
+    [((pred body ...))
+      `(if ,pred (begin ,@body))]
+    [(('else _ ...) _ ...)
+      (error "else is not allowed here")]
+    [((pred body ...) rest ...)
+      `(if ,pred (begin ,@body) (cond ,@rest))]
+    [_
+      (error "invalid cond syntax")]))
 
 (define-macro (begin . body) `((lambda () ,@body)))
 (define-macro (when test . body) `(if ,test (begin ,@body)))
@@ -133,7 +133,7 @@
 
 (define-macro (do . clauses)
   (match clauses
-    ((((var init step) ...) (test expr ...) command ...)
+    [(((var init step) ...) (test expr ...) command ...)
       (let ([sym (gensym)])
            `(letrec
               ([,sym
@@ -141,22 +141,22 @@
                   (if ,test
                       (begin ,@expr)
                       (begin ,@command (,sym ,@step))))])
-              (,sym ,@init))))
-    (_
-      (error "invalid do syntax"))))
+              (,sym ,@init)))]
+    [_
+      (error "invalid do syntax")]))
 
 (define-macro (and . l)
   (match l
-    (() #t)
-    ((test1 . test2)
-      `(if ,test1 (and ,@test2) #f))))
+    [() #t]
+    [(test1 . test2)
+      `(if ,test1 (and ,@test2) #f)]))
 
 (define-macro (or . l)
   (match l
-    (() #f)
-    ((test1 . test2)
+    [() #f]
+    [(test1 . test2)
       (let ([sym (gensym)])
-           `(let ([,sym ,test1]) (if ,sym ,sym (or ,@test2)))))))
+           `(let ([,sym ,test1]) (if ,sym ,sym (or ,@test2))))]))
 
 ; Lazy
 (define (make-promise done? proc)
