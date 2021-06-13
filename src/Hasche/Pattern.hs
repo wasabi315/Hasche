@@ -6,7 +6,6 @@
 
 module Hasche.Pattern where
 
-import Control.Exception.Safe
 import Control.Monad
 import Data.Foldable
 import Data.Functor.Compose
@@ -109,13 +108,3 @@ listify (Cons r1 r2) = do
   mos <- deref r2 >>= listify
   pure $ (o :) <$> mos
 listify _ = pure Nothing
-
-apply :: MonadEval m => Object m -> [Object m] -> m (Object m)
-apply x xs = do
-  case x of
-    Func f -> f xs
-    Cont k ->
-      case xs of
-        [arg] -> k arg
-        _ -> throw (EvalError "Arity mismatch")
-    _ -> throw (EvalError "Could not apply")

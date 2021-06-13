@@ -13,6 +13,7 @@ module Hasche.Eval
     Error (..),
     eval,
     evalMany,
+    apply,
   )
 where
 
@@ -94,3 +95,15 @@ eval env (SList (x NE.:| xs)) = do
         _ -> throw (EvalError "Arity mismatch")
     _ -> throw (EvalError "Could not apply")
 eval _ (SDList _ _) = throw (SynError "proper list required")
+
+-- Procedure application
+
+apply :: MonadEval m => Object m -> [Object m] -> m (Object m)
+apply x xs = do
+  case x of
+    Func f -> f xs
+    Cont k ->
+      case xs of
+        [arg] -> k arg
+        _ -> throw (EvalError "Arity mismatch")
+    _ -> throw (EvalError "Could not apply")

@@ -335,15 +335,3 @@ expectCons :: (MonadIO m, MonadThrow m) => Object n -> m (ObjRef n, ObjRef n)
 expectCons = \case
   Cons car cdr -> pure (car, cdr)
   _ -> throw (EvalError "expect cons")
-
--- application
-
-apply :: MonadEval m => Object m -> [Object m] -> m (Object m)
-apply x xs = do
-  case x of
-    Func f -> f xs
-    Cont k ->
-      case xs of
-        [arg] -> k arg
-        _ -> throw (EvalError "Arity mismatch")
-    _ -> throw (EvalError "Could not apply")
