@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE LambdaCase #-}
@@ -9,6 +10,7 @@ module Hasche.Pattern where
 import Control.Monad
 import Data.Foldable
 import Data.Functor.Compose
+import Data.Map.Merge.Strict qualified as M
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as M
 import Data.Text (Text)
@@ -63,7 +65,7 @@ parseQuasiPattern (SUQ e) = parsePattern e
 parseQuasiPattern (SCons e1 e2) =
   PCons (parseQuasiPattern e1) (parseQuasiPattern e2)
 
-matcher :: MonadEval m => Pattern -> Env m -> Object m -> m (Maybe (Map Text (Object m)))
+matcher :: MonadEval m => Pattern -> (Env m -> Object m -> m (Maybe (Map Text (Object m))))
 matcher PIgnore = \_ _ -> pure . Just $ M.empty
 matcher (PVar v) = \_ o -> pure . Just $ M.singleton v o
 matcher PEmpty = \_ o -> case o of
@@ -104,16 +106,12 @@ matcher (PRest p) =
         mos <- listify o
         case mos of
           Nothing -> pure Nothing
+          Just [] -> pure Nothing
           Just os -> do
             mbs <- getCompose $ traverse (Compose . m env) os
             case mbs of
               Nothing -> pure Nothing
-              Just bs ->
-                fmap Just
-                  . traverse (foldrM cons empty)
-                  . M.unionsWith (++)
-                  . map (M.map pure)
-                  $ bs
+              Just bs -> Just <$> mergeBinds bs
 
 listify :: MonadEval m => Object m -> m (Maybe [Object m])
 listify Empty = pure . Just $ []
@@ -122,3 +120,15 @@ listify (Cons r1 r2) = do
   mos <- deref r2 >>= listify
   pure $ (o :) <$> mos
 listify _ = pure Nothing
+
+mergeBinds ::
+  MonadEval m =>
+  [Map Text (Object m)] ->
+  m (Map Text (Object m))
+mergeBinds = foldrM mergeBinds' M.empty
+  where
+    mergeBinds' =
+      M.mergeA
+        (M.traverseMissing $ const (`cons` empty))
+        M.dropMissing -- will not be used
+        (M.zipWithAMatched $ const cons)
