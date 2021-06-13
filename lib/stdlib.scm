@@ -97,9 +97,7 @@
   (match clauses
     ((() body ...)
       `(begin ,@body))
-    ((((var init)) body ...)
-      `(let ([,var ,init]) ,@body))
-    ((((var init) bind ...) body ...)
+    ((((var init) . bind) body ...)
       `(let ([,var ,init]) (let* ,bind ,@body)))))
 
 (define-macro (letrec . clauses)
