@@ -98,7 +98,9 @@
     ((() body ...)
       `(begin ,@body))
     ((((var init) . bind) body ...)
-      `(let ([,var ,init]) (let* ,bind ,@body)))))
+      `(let ([,var ,init]) (let* ,bind ,@body)))
+    (_
+      (error "invalid let* syntax"))))
 
 (define-macro (letrec . clauses)
   (match clauses
@@ -106,7 +108,9 @@
       `(let
         ,(map (lambda (v) `[,v ()]) var)
         ,@(map (lambda (v i) `(set! ,v ,i)) var init)
-        ,@body))))
+        ,@body))
+    (_
+      (error "invalid letrec syntax"))))
 
 (define-macro (cond . clauses)
   (match clauses
@@ -119,7 +123,9 @@
     ((('else _ ...) _ ...)
       (error "else is not allowed here"))
     (((pred body ...) rest ...)
-      `(if ,pred (begin ,@body) (cond ,@rest)))))
+      `(if ,pred (begin ,@body) (cond ,@rest)))
+    (_
+      (error "invalid cond syntax"))))
 
 (define-macro (begin . body) `((lambda () ,@body)))
 (define-macro (when test . body) `(if ,test (begin ,@body)))
@@ -135,7 +141,9 @@
                   (if ,test
                       (begin ,@expr)
                       (begin ,@command (,sym ,@step))))])
-              (,sym ,@init))))))
+              (,sym ,@init))))
+    (_
+      (error "invalid do syntax"))))
 
 (define-macro (and . l)
   (match l
