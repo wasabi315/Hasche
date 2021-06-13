@@ -86,9 +86,9 @@
 ; Basic Macros
 (define-macro (let . clauses)
   (match clauses
-    (((? symbol? name) ((var init) ...) body ...)
-      `(letrec ((,name (lambda ,var ,@body))) (,name ,@init)))
-    ((((var init) ...) body ...)
+    (((? symbol? name) ([var init] ...) body ...)
+      `(letrec ([,name (lambda ,var ,@body)]) (,name ,@init)))
+    ((([var init] ...) body ...)
       `((lambda ,var ,@body) ,@init))
     (_
       (error "invalid let syntax"))))
@@ -97,14 +97,16 @@
   (match clauses
     ((() body ...)
       `(begin ,@body))
+    ((((var init)) body ...)
+      `(let ([,var ,init]) ,@body))
     ((((var init) bind ...) body ...)
-      `(let ((,var ,init)) (let* ,bind ,@body)))))
+      `(let ([,var ,init]) (let* ,bind ,@body)))))
 
 (define-macro (letrec . clauses)
   (match clauses
-    ((((var init) ...) body ...)
+    ((([var init] ...) body ...)
       `(let
-        ,(map (lambda (v) `(,v ())) var)
+        ,(map (lambda (v) `[,v ()]) var)
         ,@(map (lambda (v i) `(set! ,v ,i)) var init)
         ,@body))))
 
@@ -128,13 +130,13 @@
 (define-macro (do . clauses)
   (match clauses
     ((((var init step) ...) (test expr ...) command ...)
-      (let ((sym (gensym)))
+      (let ([sym (gensym)])
            `(letrec
-              ((,sym
+              ([,sym
                 (lambda ,var
                   (if ,test
                       (begin ,@expr)
-                      (begin ,@command (,sym ,@step))))))
+                      (begin ,@command (,sym ,@step))))])
               (,sym ,@init))))))
 
 (define-macro (and . l)
@@ -149,8 +151,8 @@
     (() #f)
     ((test) test)
     ((test1 test2 ...)
-      (let ((sym (gensym)))
-           `(let ((,sym ,test1)) (if ,sym ,sym (or ,@test2)))))))
+      (let ([sym (gensym)])
+           `(let ([,sym ,test1]) (if ,sym ,sym (or ,@test2)))))))
 
 ; Lazy
 (define (make-promise done? proc)
@@ -165,7 +167,7 @@
 (define (force p)
   (if (promise-done? p)
       (promise-value p)
-      (let ((p* ((promise-value p))))
+      (let ([p* ((promise-value p))])
         (unless (promise-done? p)
           (promise-update! p* p))
         (force p))))

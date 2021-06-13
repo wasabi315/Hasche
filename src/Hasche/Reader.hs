@@ -12,6 +12,7 @@ module Hasche.Reader
   )
 where
 
+import Control.Monad
 import Data.Char
 import Data.List.NonEmpty qualified as NE
 import Data.Text (Text)
@@ -56,10 +57,10 @@ quoted = do
   q <$> expr
 
 pairs :: Reader SExpr
-pairs = between (symbol "(") (symbol ")") do
+pairs = between (lexeme lparen) (lexeme rparen) do
   e : es <- some expr
   choice
-    [ SList (e NE.:| es) <$ lookAhead (char ')'),
+    [ SList (e NE.:| es) <$ lookAhead rparen,
       SDList (e NE.:| es) <$> (symbol "." *> expr)
     ]
 
@@ -118,3 +119,7 @@ lexeme = L.lexeme space
 
 symbol :: Text -> Reader Text
 symbol = L.symbol space
+
+lparen, rparen :: Reader ()
+lparen = void $ satisfy (\c -> c == '(' || c == '[')
+rparen = void $ satisfy (\c -> c == ')' || c == ']')
