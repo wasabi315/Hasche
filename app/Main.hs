@@ -6,18 +6,17 @@
 
 module Main where
 
-import Control.Concurrent.Async
-import Control.Concurrent.MVar
-import Control.Exception (displayException)
+import Control.Exception.Safe
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.Foldable
-import Data.Function
+import Data.Text qualified as T
 import Data.Text.IO qualified as T
 import Hasche.Driver
-import Options.Applicative
+import Options.Applicative hiding (help)
+import System.Console.Haskeline
 import System.Exit
 import System.IO
-import System.Posix.Signals
 
 main :: IO ()
 main = do
@@ -43,41 +42,32 @@ parserInfo =
       ]
 
 exec :: FilePath -> IO ()
-exec path = do
-  txt <- T.readFile path
-  interpret <- newInterpreter path
-  interruptible <- newInterruptibleBy keyboardSignal
+exec path = runInputT defaultSettings do
+  txt <- liftIO $ T.readFile path
+  interpret <- liftIO $ newInterpreter path
 
-  interruptible (interpret txt) >>= \case
-    Nothing -> hPutStrLn stderr "Interrupted" *> exitFailure
-    Just (Right _) -> exitSuccess
-    Just (Left err) -> hPutStrLn stderr (displayException err) *> exitFailure
+  withInterrupt . handleInterrupt (outputStrLn "Interrupted") $ do
+    liftIO (interpret txt) >>= \case
+      Left err -> liftIO $ hPutStrLn stderr (displayException err) >> exitFailure
+      Right _ -> liftIO exitSuccess
 
 repl :: IO ()
-repl = do
-  hSetBuffering stdout NoBuffering
-  interruptible <- newInterruptibleBy keyboardSignal
+repl = runInputT defaultSettings do
+  outputStrLn headerText
+  interpret <- liftIO $ newInterpreter "<interactive>"
 
-  putStrLn headerText
-
-  interpret <- newInterpreter "<interactive>"
-
-  fix \loop -> do
-    putStr promptText
-    txt <- T.getLine
-    if
-        | txt == "" -> loop
-        | txt == ":help" || txt == ":?" -> putStrLn helpText >> loop
-        | txt == ":quit" || txt == ":q" -> pure ()
-        | otherwise ->
-          do
-            interruptible (interpret txt) >>= \case
-              Nothing -> putStrLn "Interrupted"
-              Just (Left err) -> putStrLn (displayException err)
-              Just (Right obj) -> pretty obj >>= T.putStrLn
-            loop
-
-  exitSuccess
+  withInterrupt . forever . handleInterrupt (outputStrLn "Interrupted") $ do
+    minput <- getInputLine promptText
+    case minput of
+      Nothing -> pure ()
+      Just (':' : cmd)
+        | Just m <- lookup cmd commands -> m
+        | otherwise -> outputStrLn $ "Unknown command: " ++ cmd
+      Just txt -> do
+        result <- liftIO $ interpret (T.pack txt)
+        case result of
+          Left err -> outputStrLn (displayException err)
+          Right obj -> liftIO (pretty obj) >>= outputStrLn . T.unpack
 
 headerText :: String
 headerText =
@@ -95,19 +85,18 @@ helpText =
 promptText :: String
 promptText = "hasche> "
 
-newInterruptibleBy :: Signal -> IO (IO a -> IO (Maybe a))
-newInterruptibleBy sig = do
-  sigInvoked <- newEmptyMVar
-  active <- newMVar False
-  let handler = do
-        p <- readMVar active
-        when p (putMVar sigInvoked ())
-  _ <- installHandler sig (Catch handler) Nothing
+-- Commands
 
-  pure \ma -> do
-    modifyMVar_ active (const $ pure True)
-    ea <- race (takeMVar sigInvoked) ma
-    modifyMVar_ active (const $ pure False)
-    case ea of
-      Left _ -> pure Nothing
-      Right a -> pure (Just a)
+commands :: [(String, InputT IO ())]
+commands =
+  [ ("help", help),
+    ("?", help),
+    ("quit", quit),
+    ("q", quit)
+  ]
+
+help :: InputT IO ()
+help = outputStrLn helpText
+
+quit :: InputT IO ()
+quit = liftIO exitSuccess
