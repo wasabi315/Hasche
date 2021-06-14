@@ -53,6 +53,7 @@ exec path = runInputT defaultSettings do
 
 repl :: IO ()
 repl = runInputT defaultSettings do
+  liftIO $ hSetBuffering stdout NoBuffering
   outputStrLn headerText
   interpret <- liftIO $ newInterpreter "<interactive>"
 
