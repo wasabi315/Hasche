@@ -69,53 +69,37 @@ parseQuasiPattern (SUQ e) = parsePattern e
 parseQuasiPattern (SCons e1 e2) =
   PCons (parseQuasiPattern e1) (parseQuasiPattern e2)
 
-matcher :: MonadEval m => Pattern -> (Env m -> Object m -> m (Maybe (Map Text (Object m))))
-matcher PIgnore = \_ _ -> pure . Just $ M.empty
-matcher (PVar v) = \_ o -> pure . Just $ M.singleton v o
-matcher PEmpty = \_ o -> case o of
-  Empty -> pure . Just $ M.empty
-  _ -> pure Nothing
-matcher (PBool b) = \_ o -> case o of
-  Bool b' | b == b' -> pure . Just $ M.empty
-  _ -> pure Nothing
-matcher (PNum n) = \_ o -> case o of
-  Num n' | n == n' -> pure . Just $ M.empty
-  _ -> pure Nothing
-matcher (PStr s) = \_ o -> case o of
-  Str s' | s == s' -> pure . Just $ M.empty
-  _ -> pure Nothing
-matcher (PSym s) = \_ o -> case o of
-  Sym s' | s == s' -> pure . Just $ M.empty
-  _ -> pure Nothing
-matcher (PPred s p) =
-  let m = matcher p
-   in \env o -> do
-        f <- eval env (SSym s)
-        t <- apply f [o]
-        case t of
-          Bool True -> m env o
-          _ -> pure Nothing
-matcher (PCons p1 p2) =
-  let m1 = matcher p1
-      m2 = matcher p2
-   in \env o -> case o of
-        Cons r1 r2 -> do
-          mb1 <- deref r1 >>= m1 env
-          mb2 <- deref r2 >>= m2 env
-          pure $ liftM2 M.union mb1 mb2
-        _ -> pure Nothing
-matcher (PRest p) =
-  let m = matcher p
-   in \env o -> do
-        mos <- listify o
-        case mos of
-          Nothing -> pure Nothing
-          Just [] -> pure Nothing
-          Just os -> do
-            mbs <- getCompose $ traverse (Compose . m env) os
-            case mbs of
-              Nothing -> pure Nothing
-              Just bs -> Just <$> mergeBinds bs
+matcher :: MonadEval m => Pattern -> Env m -> Object m -> m (Maybe (Map Text (Object m)))
+matcher PIgnore _ _ = pure . Just $ M.empty
+matcher (PVar v) _ o = pure . Just $ M.singleton v o
+matcher PEmpty _ Empty = pure . Just $ M.empty
+matcher (PBool b) _ (Bool b')
+  | b == b' = pure . Just $ M.empty
+matcher (PNum n) _ (Num n')
+  | n == n' = pure . Just $ M.empty
+matcher (PStr s) _ (Str s')
+  | s == s' = pure . Just $ M.empty
+matcher (PSym s) _ (Sym s')
+  | s == s' = pure . Just $ M.empty
+matcher (PPred s p) env o = do
+  f <- eval env (SSym s)
+  t <- apply f [o]
+  case t of
+    Bool False -> pure Nothing
+    _ -> matcher p env o
+matcher (PCons p1 p2) env (Cons r1 r2) = do
+  mb1 <- deref r1 >>= matcher p1 env
+  mb2 <- deref r2 >>= matcher p2 env
+  pure $ liftM2 M.union mb1 mb2
+matcher (PRest p) env o = do
+  mos <- listify o
+  case mos of
+    Nothing -> pure Nothing
+    Just [] -> pure Nothing
+    Just os -> do
+      mbs <- getCompose $ traverse (Compose . matcher p env) os
+      traverse mergeBinds mbs
+matcher _ _ _ = pure Nothing
 
 listify :: MonadEval m => Object m -> m (Maybe [Object m])
 listify Empty = pure . Just $ []
