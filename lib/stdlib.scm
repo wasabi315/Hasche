@@ -86,8 +86,12 @@
 ; Basic Macros
 (define-macro (let . clauses)
   (match clauses
+    [((? symbol? name) () body ...)
+      `(letrec ([,name (lambda () ,@body)]) (,name))]
     [((? symbol? name) ([var init] ...) body ...)
       `(letrec ([,name (lambda ,var ,@body)]) (,name ,@init))]
+    [(() body ...)
+      `(begin ,@body)]
     [(([var init] ...) body ...)
       `((lambda ,var ,@body) ,@init)]
     [_
@@ -95,15 +99,17 @@
 
 (define-macro (let* . clauses)
   (match clauses
-    ((() body ...)
-      `(begin ,@body))
-    ((((var init) . bind) body ...)
-      `(let ([,var ,init]) (let* ,bind ,@body)))
-    (_
-      (error "invalid let* syntax"))))
+    [(() body ...)
+      `(begin ,@body)]
+    [(((var init) . bind) body ...)
+      `(let ([,var ,init]) (let* ,bind ,@body))]
+    [_
+      (error "invalid let* syntax")]))
 
 (define-macro (letrec . clauses)
   (match clauses
+    [(() body ...)
+      `(begin ,@body)]
     [(([var init] ...) body ...)
       `(let
         ,(map (lambda (v) `[,v ()]) var)
