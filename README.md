@@ -1,7 +1,7 @@
 # Hasche
 > /ˈhæʃ/: **Ha**skell + **Sche**me
 
-An interpreter for a subset of Scheme written in Haskell
+An interpreter of a subset of Scheme written in Haskell
 
 ## Features
 - REPL Session
@@ -65,3 +65,9 @@ gensym
 ```
 delay, force, delay-force, promise-done?
 ```
+
+## Future works
+- [ ] Multiple values
+- [ ] Tail call optimization
+- [ ] Hygienic macro
+- [ ] Exception handling
