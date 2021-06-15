@@ -67,6 +67,7 @@ delay, force, delay-force, promise-done?
 ```
 
 ## Future works
+- [ ] Multiple values
 - [ ] Tail call optimization
 - [ ] Hygienic macro
 - [ ] Exception handling
