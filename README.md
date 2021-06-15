@@ -65,3 +65,8 @@ gensym
 ```
 delay, force, delay-force, promise-done?
 ```
+
+## Future works
+- [ ] Tail call optimization
+- [ ] Hygienic macro
+- [ ] Exception handling
