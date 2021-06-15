@@ -1,7 +1,7 @@
 # Hasche
 > /ˈhæʃ/: **Ha**skell + **Sche**me
 
-An interpreter for a subset of Scheme written in Haskell
+An interpreter of a subset of Scheme written in Haskell
 
 ## Features
 - REPL Session
