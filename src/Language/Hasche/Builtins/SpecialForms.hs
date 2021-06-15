@@ -6,7 +6,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Hasche.Builtins.SpecialForms where
+module Language.Hasche.Builtins.SpecialForms where
 
 import Control.Exception.Safe
 import Control.Monad
@@ -15,11 +15,11 @@ import Data.Foldable
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as M
 import Data.Maybe
-import Hasche.Cell
-import Hasche.Eval
-import Hasche.Object
-import Hasche.Pattern
-import Hasche.SExpr
+import Language.Hasche.Cell
+import Language.Hasche.Eval
+import Language.Hasche.Object
+import Language.Hasche.Pattern
+import Language.Hasche.SExpr
 import Prelude hiding (lookup)
 
 -- special forms

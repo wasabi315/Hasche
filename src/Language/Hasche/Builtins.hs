@@ -4,13 +4,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Hasche.Builtins (builtinEnv) where
+module Language.Hasche.Builtins (builtinEnv) where
 
 import Control.Monad.IO.Class
-import Hasche.Builtins.Primitives
-import Hasche.Builtins.SpecialForms
-import Hasche.Eval
-import Hasche.Object
+import Language.Hasche.Builtins.Primitives
+import Language.Hasche.Builtins.SpecialForms
+import Language.Hasche.Eval
+import Language.Hasche.Object
 
 builtinEnv :: (MonadIO m, MonadEval n) => m (Env n)
 builtinEnv = do

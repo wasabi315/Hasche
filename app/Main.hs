@@ -12,7 +12,7 @@ import Control.Monad.IO.Class
 import Data.Foldable
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
-import Hasche.Driver
+import Language.Hasche.Driver
 import Options.Applicative hiding (help)
 import System.Console.Haskeline
 import System.Exit

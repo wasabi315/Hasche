@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
-module Hasche.Pattern
+module Language.Hasche.Pattern
   ( matcher,
     parsePattern,
   )
@@ -18,9 +18,9 @@ import Data.Map.Merge.Strict qualified as M
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as M
 import Data.Text (Text)
-import Hasche.Eval
-import Hasche.Object
-import Hasche.SExpr
+import Language.Hasche.Eval
+import Language.Hasche.Object
+import Language.Hasche.SExpr
 
 -- Pattern
 

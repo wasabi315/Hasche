@@ -6,7 +6,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Hasche.Eval
+module Language.Hasche.Eval
   ( MonadEval,
     EvalM,
     runEvalM,
@@ -25,9 +25,9 @@ import Data.List.NonEmpty qualified as NE
 import Data.Maybe
 import Data.Text (Text)
 import Data.Text qualified as T
-import Hasche.Object
-import Hasche.Reader
-import Hasche.SExpr
+import Language.Hasche.Object
+import Language.Hasche.Reader
+import Language.Hasche.SExpr
 import Prelude hiding (lookup)
 
 -- Monad Stack

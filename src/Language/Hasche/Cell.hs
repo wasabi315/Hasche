@@ -1,4 +1,4 @@
-module Hasche.Cell
+module Language.Hasche.Cell
   ( Cell,
     newCell,
     deref,

@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Hasche.Builtins.Primitives where
+module Language.Hasche.Builtins.Primitives where
 
 import Control.Exception.Safe
 import Control.Monad
@@ -15,12 +15,12 @@ import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
-import Hasche.Cell
-import Hasche.Eval
-import Hasche.Format
-import Hasche.Object
-import Hasche.Reader
-import Hasche.SExpr
+import Language.Hasche.Cell
+import Language.Hasche.Eval
+import Language.Hasche.Format
+import Language.Hasche.Object
+import Language.Hasche.Reader
+import Language.Hasche.SExpr
 import System.Exit
 import System.IO
 

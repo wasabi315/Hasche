@@ -8,7 +8,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Hasche.Format
+module Language.Hasche.Format
   ( write,
     display,
   )
@@ -23,7 +23,7 @@ import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as TB
 import Data.Text.Lazy.Builder.Int qualified as TB
-import Hasche.Object
+import Language.Hasche.Object
 
 -- Stringify Object
 

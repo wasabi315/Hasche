@@ -13,18 +13,18 @@ extra-source-files:
     lib/*.scm
 
 library
-    exposed-modules:  Hasche.SExpr
-                    , Hasche.Reader
-                    , Hasche.Box
-                    , Hasche.Cell
-                    , Hasche.Object
-                    , Hasche.Format
-                    , Hasche.Eval
-                    , Hasche.Builtins.Primitives
-                    , Hasche.Builtins.SpecialForms
-                    , Hasche.Builtins
-                    , Hasche.Driver
-                    , Hasche.Pattern
+    exposed-modules:  Language.Hasche.SExpr
+                    , Language.Hasche.Reader
+                    , Language.Hasche.Box
+                    , Language.Hasche.Cell
+                    , Language.Hasche.Object
+                    , Language.Hasche.Format
+                    , Language.Hasche.Eval
+                    , Language.Hasche.Builtins.Primitives
+                    , Language.Hasche.Builtins.SpecialForms
+                    , Language.Hasche.Builtins
+                    , Language.Hasche.Driver
+                    , Language.Hasche.Pattern
     other-modules:    Data.Foldable.Extra
     build-depends:    base ^>=4.14.1.0
                     , text

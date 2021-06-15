@@ -1,4 +1,4 @@
-module Hasche.Box
+module Language.Hasche.Box
   ( Box,
     Loc,
     alloc,

@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Hasche.Object
+module Language.Hasche.Object
   ( Object,
     ObjRef,
     undef,
@@ -42,8 +42,8 @@ module Hasche.Object
     childEnv,
     lookup,
     bind,
-    module Hasche.Box,
-    module Hasche.Cell,
+    module Language.Hasche.Box,
+    module Language.Hasche.Cell,
   )
 where
 
@@ -54,9 +54,9 @@ import Data.HashTable.IO qualified as HT
 import Data.Maybe
 import Data.Text (Text)
 import GHC.IO.Unsafe
-import Hasche.Box
-import Hasche.Cell
-import Hasche.SExpr
+import Language.Hasche.Box
+import Language.Hasche.Cell
+import Language.Hasche.SExpr
 import System.IO
 import Text.StringRandom
 import Prelude hiding (lookup)

@@ -6,7 +6,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Hasche.Driver
+module Language.Hasche.Driver
   ( newInterpreter,
     pretty,
     Object,
@@ -17,12 +17,12 @@ where
 import Control.Exception.Safe
 import Data.FileEmbed
 import Data.Text (Text)
-import Hasche.Builtins
-import Hasche.Eval
-import Hasche.Format
-import Hasche.Object hiding (Object)
-import Hasche.Object qualified as Obj (Object)
-import Hasche.Reader
+import Language.Hasche.Builtins
+import Language.Hasche.Eval
+import Language.Hasche.Format
+import Language.Hasche.Object hiding (Object)
+import Language.Hasche.Object qualified as Obj (Object)
+import Language.Hasche.Reader
 
 newInterpreter :: FilePath -> IO (Text -> IO (Either Error Object))
 newInterpreter fp = do
