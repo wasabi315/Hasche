@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Language.Hasche.Reader
+module Language.Hasche.Syntax.Reader
   ( readSExprList,
     readSExpr,
     readSNum,
@@ -18,7 +18,7 @@ import Data.List.NonEmpty qualified as NE
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
-import Language.Hasche.SExpr
+import Language.Hasche.Syntax.SExpr
 import Text.Megaparsec
 import Text.Megaparsec.Char hiding (space)
 import Text.Megaparsec.Char.Lexer qualified as L

@@ -6,7 +6,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Language.Hasche.Driver
+module Language.Hasche
   ( newInterpreter,
     pretty,
     Object,
@@ -19,22 +19,17 @@ import Data.FileEmbed
 import Data.Text (Text)
 import Language.Hasche.Builtins
 import Language.Hasche.Eval
-import Language.Hasche.Format
-import Language.Hasche.Object hiding (Object)
-import Language.Hasche.Object qualified as Obj (Object)
-import Language.Hasche.Reader
+import Language.Hasche.Eval.Error
+import Language.Hasche.Syntax.Reader
 
 newInterpreter :: FilePath -> IO (Text -> IO (Either Error Object))
 newInterpreter fp = do
-  topEnv <- childEnv =<< builtinEnv
+  topEnv <- builtinEnv
 
   let run txt =
         case readSExprList fp txt of
           Left e -> pure (Left (ReadError e))
-          Right prog -> do
-            catch
-              (runEvalM (evalMany topEnv prog) topEnv (pure . Right . Object))
-              (pure . Left)
+          Right prog -> evaluate topEnv prog
 
   -- load standard library
   res <- run $(makeRelativeToProject "lib/stdlib.scm" >>= embedStringFile)
@@ -43,8 +38,3 @@ newInterpreter fp = do
     Right _ -> pure ()
 
   pure run
-
-data Object = forall m. Object (Obj.Object m)
-
-pretty :: Object -> IO Text
-pretty (Object obj) = write obj

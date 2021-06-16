@@ -3,12 +3,9 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE ViewPatterns #-}
 
-module Language.Hasche.Format
+module Language.Hasche.Eval.Format
   ( write,
     display,
   )
@@ -23,7 +20,9 @@ import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as TB
 import Data.Text.Lazy.Builder.Int qualified as TB
-import Language.Hasche.Object
+import Language.Hasche.Eval.Box qualified as Box
+import Language.Hasche.Eval.Cell qualified as Cell
+import Language.Hasche.Eval.Object
 
 -- Stringify Object
 
@@ -49,8 +48,8 @@ data FormatOption = FormatOption
   }
 
 format :: MonadIO m => FormatOption -> Object n -> m Text
-format FormatOption {..} obj =
-  TL.toStrict . TB.toLazyText . format' <$> liftIO (decycle obj)
+format FormatOption {..} =
+  liftIO . fmap (TL.toStrict . TB.toLazyText . format') . decycle
   where
     format' = \case
       DUndef -> fmtUndef
@@ -132,7 +131,7 @@ data DecycleStatus
 
 decycle :: Object n -> IO Decycled
 decycle obj = do
-  table <- HT.new :: IO (BasicHashTable Loc DecycleStatus)
+  table <- HT.new :: IO (BasicHashTable Box.Loc DecycleStatus)
   nextLabel <- newIORef (0 :: Label)
 
   let loop Undef = pure DUndef
@@ -145,23 +144,24 @@ decycle obj = do
       loop (Syn _) = pure DSyn
       loop (Func _) = pure DFunc
       loop (Cont _) = pure DCont
-      loop o@(Cons car cdr) =
-        HT.lookup table (loc o) >>= \case
+      loop o@(Cons car cdr) = do
+        let l = Box.loc o
+        HT.lookup table l >>= \case
           Nothing -> do
-            HT.insert table (loc o) InProgress
-            d1 <- deref car >>= loop
-            d2 <- deref cdr >>= loop
-            HT.mutate table (loc o) \mres ->
+            HT.insert table l InProgress
+            d1 <- Cell.deref car >>= loop
+            d2 <- Cell.deref cdr >>= loop
+            HT.mutate table l \mres ->
               let d = case mres of
                     Just InProgress -> DCons Nothing d1 d2
-                    Just (CycleDetected l) -> DCons (Just l) d1 d2
+                    Just (CycleDetected lbl) -> DCons (Just lbl) d1 d2
                     _ -> error "Unreachable"
                in (Just (Done d), d)
           Just InProgress -> do
-            l <- readIORef nextLabel <* modifyIORef' nextLabel succ
-            HT.insert table (loc o) (CycleDetected l)
-            pure (DRef l)
-          Just (CycleDetected l) -> pure (DRef l)
+            lbl <- readIORef nextLabel <* modifyIORef' nextLabel succ
+            HT.insert table l (CycleDetected lbl)
+            pure (DRef lbl)
+          Just (CycleDetected lbl) -> pure (DRef lbl)
           Just (Done d) -> pure d
 
   loop obj

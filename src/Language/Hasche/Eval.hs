@@ -1,43 +1,26 @@
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Hasche.Eval
-  ( MonadEval,
-    EvalM,
+  ( EvalM,
     runEvalM,
-    Error (..),
-    eval,
-    evalMany,
-    apply,
+    evaluate,
+    Object,
+    pretty,
   )
 where
 
 import Control.Exception.Safe
 import Control.Monad.Cont
 import Control.Monad.Reader
-import Data.Foldable.Extra
-import Data.List.NonEmpty qualified as NE
-import Data.Maybe
 import Data.Text (Text)
-import Data.Text qualified as T
-import Language.Hasche.Object
-import Language.Hasche.Reader
-import Language.Hasche.SExpr
-import Prelude hiding (lookup)
-
--- Monad Stack
-
-type MonadEval m =
-  ( MonadReader (Env m) m, -- for accessing top-level environment
-    MonadCont m, -- for call/cc
-    MonadIO m,
-    MonadThrow m
-  )
+import Language.Hasche.Eval.Error
+import Language.Hasche.Eval.Eval
+import Language.Hasche.Eval.Format
+import Language.Hasche.Eval.Object hiding (Object)
+import Language.Hasche.Eval.Object qualified as Obj (Object)
+import Language.Hasche.Syntax.SExpr
 
 newtype EvalM r a = EvalM (ReaderT (Env (EvalM r)) (ContT r IO) a)
   deriving
@@ -53,57 +36,13 @@ newtype EvalM r a = EvalM (ReaderT (Env (EvalM r)) (ContT r IO) a)
 runEvalM :: EvalM r a -> Env (EvalM r) -> (a -> IO r) -> IO r
 runEvalM (EvalM m) = runContT . runReaderT m
 
--- Errors
+evaluate :: Env (EvalM (Either Error Object)) -> [SExpr] -> IO (Either Error Object)
+evaluate env prog =
+  catch
+    (runEvalM (evalMany env prog) env (pure . Right . Object))
+    (pure . Left)
 
-data Error
-  = ReadError ReadError
-  | FileError IOException
-  | SynError Text
-  | EvalError Text
-  | UserError Text
-  deriving (Show)
+data Object = forall m. Object (Obj.Object m)
 
-instance Exception Error where
-  displayException (ReadError e) = "[READ ERROR]: " ++ displayException e
-  displayException (FileError e) = "[FILE ERROR]:" ++ displayException e
-  displayException (SynError e) = "[SYNTAX ERROR]: " ++ T.unpack e
-  displayException (EvalError e) = "[EVAL ERROR]: " ++ T.unpack e
-  displayException (UserError e) = "[USER ERROR]: " ++ T.unpack e
-
--- Evaluation
-
-evalMany :: MonadEval m => Env m -> [SExpr] -> m (Object m)
-evalMany env = traverseAndLast (eval env) undef
-
-eval :: MonadEval m => Env m -> SExpr -> m (Object m)
-eval _ SEmpty = pure empty
-eval _ (SBool b) = pure if b then true else false
-eval _ (SNum n) = num n
-eval _ (SStr s) = str s
-eval env (SSym s) =
-  lookup env s >>= \case
-    Nothing -> throw (EvalError $ "Unbound identifier: " <> s)
-    Just ref -> deref ref
-eval env (SList (x NE.:| xs)) = do
-  obj <- eval env x
-  case obj of
-    Syn f -> f env xs
-    Func f -> traverse (eval env) xs >>= f
-    Cont k ->
-      case xs of
-        [y] -> eval env y >>= k
-        _ -> throw (EvalError "Arity mismatch")
-    _ -> throw (EvalError "Could not apply")
-eval _ (SDList _ _) = throw (SynError "proper list required")
-
--- Procedure application
-
-apply :: MonadEval m => Object m -> [Object m] -> m (Object m)
-apply x xs = do
-  case x of
-    Func f -> f xs
-    Cont k ->
-      case xs of
-        [arg] -> k arg
-        _ -> throw (EvalError "Arity mismatch")
-    _ -> throw (EvalError "Could not apply")
+pretty :: Object -> IO Text
+pretty (Object obj) = write obj

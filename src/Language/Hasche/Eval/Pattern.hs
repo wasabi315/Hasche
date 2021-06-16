@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
-module Language.Hasche.Pattern
+module Language.Hasche.Eval.Pattern
   ( matcher,
     parsePattern,
   )
@@ -18,9 +18,10 @@ import Data.Map.Merge.Strict qualified as M
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as M
 import Data.Text (Text)
-import Language.Hasche.Eval
-import Language.Hasche.Object
-import Language.Hasche.SExpr
+import Language.Hasche.Eval.Cell qualified as Cell
+import Language.Hasche.Eval.Eval
+import Language.Hasche.Eval.Object
+import Language.Hasche.Syntax.SExpr
 
 -- Pattern
 
@@ -88,8 +89,8 @@ matcher (PPred s p) env o = do
     Bool False -> pure Nothing
     _ -> matcher p env o
 matcher (PCons p1 p2) env (Cons r1 r2) = do
-  mb1 <- deref r1 >>= matcher p1 env
-  mb2 <- deref r2 >>= matcher p2 env
+  mb1 <- Cell.deref r1 >>= matcher p1 env
+  mb2 <- Cell.deref r2 >>= matcher p2 env
   pure $ liftM2 M.union mb1 mb2
 matcher (PRest p) env o = do
   mos <- listify o
@@ -104,8 +105,8 @@ matcher _ _ _ = pure Nothing
 listify :: MonadEval m => Object m -> m (Maybe [Object m])
 listify Empty = pure . Just $ []
 listify (Cons r1 r2) = do
-  o <- deref r1
-  mos <- deref r2 >>= listify
+  o <- Cell.deref r1
+  mos <- Cell.deref r2 >>= listify
   pure $ (o :) <$> mos
 listify _ = pure Nothing
 

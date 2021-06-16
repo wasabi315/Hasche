@@ -13,24 +13,28 @@ extra-source-files:
     lib/*.scm
 
 library
-    exposed-modules:  Language.Hasche.SExpr
-                    , Language.Hasche.Reader
-                    , Language.Hasche.Box
-                    , Language.Hasche.Cell
-                    , Language.Hasche.Object
-                    , Language.Hasche.Format
+    exposed-modules:  Language.Hasche
+                    , Language.Hasche.Syntax.Reader
+                    , Language.Hasche.Syntax.SExpr
                     , Language.Hasche.Eval
+                    , Language.Hasche.Eval.Box
+                    , Language.Hasche.Eval.Cell
+                    , Language.Hasche.Eval.Env
+                    , Language.Hasche.Eval.Error
+                    , Language.Hasche.Eval.Eval
+                    , Language.Hasche.Eval.Format
+                    , Language.Hasche.Eval.Object
+                    , Language.Hasche.Eval.Pattern
+                    , Language.Hasche.Builtins
                     , Language.Hasche.Builtins.Primitives
                     , Language.Hasche.Builtins.SpecialForms
-                    , Language.Hasche.Builtins
-                    , Language.Hasche.Driver
-                    , Language.Hasche.Pattern
     other-modules:    Data.Foldable.Extra
     build-depends:    base ^>=4.14.1.0
                     , text
                     , megaparsec
                     , mtl
                     , containers
+                    , hashable
                     , hashtables
                     , safe-exceptions
                     , string-random
@@ -41,6 +45,8 @@ library
 
 executable hasche
     main-is:          Main.hs
+    other-modules:    Commands.Exec
+                    , Commands.REPL
     build-depends:    base ^>=4.14.1.0
                     , text
                     , optparse-applicative

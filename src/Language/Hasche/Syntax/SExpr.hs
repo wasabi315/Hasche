@@ -5,7 +5,7 @@
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Language.Hasche.SExpr
+module Language.Hasche.Syntax.SExpr
   ( SExpr (..),
     pattern SList,
     pattern SDList,

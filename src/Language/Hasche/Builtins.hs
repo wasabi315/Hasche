@@ -9,77 +9,78 @@ module Language.Hasche.Builtins (builtinEnv) where
 import Control.Monad.IO.Class
 import Language.Hasche.Builtins.Primitives
 import Language.Hasche.Builtins.SpecialForms
-import Language.Hasche.Eval
-import Language.Hasche.Object
+import Language.Hasche.Eval.Env qualified as Env
+import Language.Hasche.Eval.Eval
+import Language.Hasche.Eval.Object
 
 builtinEnv :: (MonadIO m, MonadEval n) => m (Env n)
 builtinEnv = do
-  e <- rootEnv
+  e <- Env.empty
 
-  bind e "define" =<< synDefine
-  bind e "define-macro" =<< synDefMacro
-  bind e "quote" =<< synQuote
-  bind e "quasiquote" =<< synQuasiquote
-  bind e "unquote" =<< synUnquote
-  bind e "unquote-splicing" =<< synUnquoteSplicing
-  bind e "if" =<< synIf
-  bind e "set!" =<< synSet
-  bind e "lambda" =<< synLambda
+  Env.bind e "define" =<< synDefine
+  Env.bind e "define-macro" =<< synDefMacro
+  Env.bind e "quote" =<< synQuote
+  Env.bind e "quasiquote" =<< synQuasiquote
+  Env.bind e "unquote" =<< synUnquote
+  Env.bind e "unquote-splicing" =<< synUnquoteSplicing
+  Env.bind e "if" =<< synIf
+  Env.bind e "set!" =<< synSet
+  Env.bind e "lambda" =<< synLambda
 
-  bind e "match" =<< synMatch
+  Env.bind e "match" =<< synMatch
 
-  bind e "eval" =<< funcEval
-  bind e "apply" =<< funcApply
+  Env.bind e "eval" =<< funcEval
+  Env.bind e "apply" =<< funcApply
 
-  bind e "null?" =<< funcIsNull
-  bind e "bool?" =<< funcIsBool
-  bind e "number?" =<< funcIsNum
-  bind e "string?" =<< funcIsStr
-  bind e "symbol?" =<< funcIsSym
-  bind e "pair?" =<< funcIsPair
-  bind e "procedure?" =<< funcIsProc
+  Env.bind e "null?" =<< funcIsNull
+  Env.bind e "bool?" =<< funcIsBool
+  Env.bind e "number?" =<< funcIsNum
+  Env.bind e "string?" =<< funcIsStr
+  Env.bind e "symbol?" =<< funcIsSym
+  Env.bind e "pair?" =<< funcIsPair
+  Env.bind e "procedure?" =<< funcIsProc
 
-  bind e "+" =<< funcAdd
-  bind e "-" =<< funcSub
-  bind e "*" =<< funcMul
-  bind e "/" =<< funcDiv
-  bind e "modulo" =<< funcMod
-  bind e "=" =<< funcNumEq
-  bind e "<" =<< funcLt
-  bind e "<=" =<< funcLe
-  bind e ">" =<< funcGt
-  bind e ">=" =<< funcGe
+  Env.bind e "+" =<< funcAdd
+  Env.bind e "-" =<< funcSub
+  Env.bind e "*" =<< funcMul
+  Env.bind e "/" =<< funcDiv
+  Env.bind e "modulo" =<< funcMod
+  Env.bind e "=" =<< funcNumEq
+  Env.bind e "<" =<< funcLt
+  Env.bind e "<=" =<< funcLe
+  Env.bind e ">" =<< funcGt
+  Env.bind e ">=" =<< funcGe
 
-  bind e "eq?" =<< funcEq
-  bind e "eqv?" =<< funcEqv
-  bind e "equal?" =<< funcEqual
+  Env.bind e "eq?" =<< funcEq
+  Env.bind e "eqv?" =<< funcEqv
+  Env.bind e "equal?" =<< funcEqual
 
-  bind e "string-append" =<< funcStrAppend
-  bind e "string->number" =<< funcStrNum
-  bind e "number->string" =<< funcNumStr
-  bind e "string->symbol" =<< funcStrSym
-  bind e "symbol->string" =<< funcSymStr
+  Env.bind e "string-append" =<< funcStrAppend
+  Env.bind e "string->number" =<< funcStrNum
+  Env.bind e "number->string" =<< funcNumStr
+  Env.bind e "string->symbol" =<< funcStrSym
+  Env.bind e "symbol->string" =<< funcSymStr
 
-  bind e "gensym" =<< funcGensym
+  Env.bind e "gensym" =<< funcGensym
 
-  bind e "cons" =<< funcCons
-  bind e "car" =<< funcCar
-  bind e "cdr" =<< funcCdr
-  bind e "set-car!" =<< funcSetCar
-  bind e "set-cdr!" =<< funcSetCdr
+  Env.bind e "cons" =<< funcCons
+  Env.bind e "car" =<< funcCar
+  Env.bind e "cdr" =<< funcCdr
+  Env.bind e "set-car!" =<< funcSetCar
+  Env.bind e "set-cdr!" =<< funcSetCdr
 
-  bind e "call/cc" =<< funcCallCC
+  Env.bind e "call/cc" =<< funcCallCC
 
-  bind e "open-input-file" =<< funcOpenInputFile
-  bind e "open-output-file" =<< funcOpenOutputFile
-  bind e "close-input-port" =<< funcCloseInputPort
-  bind e "close-output-port" =<< funcCloseOutputPort
-  bind e "read" =<< funcRead
-  bind e "display" =<< funcDisplay
-  bind e "write" =<< funcWrite
+  Env.bind e "open-input-file" =<< funcOpenInputFile
+  Env.bind e "open-output-file" =<< funcOpenOutputFile
+  Env.bind e "close-input-port" =<< funcCloseInputPort
+  Env.bind e "close-output-port" =<< funcCloseOutputPort
+  Env.bind e "read" =<< funcRead
+  Env.bind e "display" =<< funcDisplay
+  Env.bind e "write" =<< funcWrite
 
-  bind e "error" =<< funcError
+  Env.bind e "error" =<< funcError
 
-  bind e "exit" =<< funcExit
+  Env.bind e "exit" =<< funcExit
 
   pure e

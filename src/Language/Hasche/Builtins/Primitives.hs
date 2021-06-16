@@ -15,12 +15,13 @@ import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
-import Language.Hasche.Cell
-import Language.Hasche.Eval
-import Language.Hasche.Format
-import Language.Hasche.Object
-import Language.Hasche.Reader
-import Language.Hasche.SExpr
+import Language.Hasche.Eval.Cell qualified as Cell
+import Language.Hasche.Eval.Error
+import Language.Hasche.Eval.Eval
+import Language.Hasche.Eval.Format
+import Language.Hasche.Eval.Object
+import Language.Hasche.Syntax.Reader
+import Language.Hasche.Syntax.SExpr
 import System.Exit
 import System.IO
 
@@ -46,8 +47,8 @@ funcApply =
     pairToList o = case o of
       Empty -> pure []
       Cons car cdr -> do
-        o1 <- deref car
-        o2 <- deref cdr
+        o1 <- Cell.deref car
+        o2 <- Cell.deref cdr
         os <- pairToList o2
         pure (o1 : os)
       _ -> pure [o]
@@ -155,14 +156,14 @@ eqv x y = eq x y
 
 equal :: MonadIO m => Object n -> Object n -> m (Object n)
 equal (Cons r1 r2) (Cons r3 r4) = do
-  o1 <- deref r1
-  o3 <- deref r3
+  o1 <- Cell.deref r1
+  o3 <- Cell.deref r3
   t <- equal o1 o3
   if t == false
     then pure false
     else do
-      o2 <- deref r2
-      o4 <- deref r4
+      o2 <- Cell.deref r2
+      o4 <- Cell.deref r4
       equal o2 o4
 equal x y = eqv x y
 
@@ -194,22 +195,22 @@ funcCons :: (MonadIO m, MonadEval n) => m (Object n)
 funcCons = mkFunc2 cons
 
 funcCar :: (MonadIO m, MonadEval n) => m (Object n)
-funcCar = mkFunc1 $ expectCons >=> deref . fst
+funcCar = mkFunc1 $ expectCons >=> Cell.deref . fst
 
 funcCdr :: (MonadIO m, MonadEval n) => m (Object n)
-funcCdr = mkFunc1 $ expectCons >=> deref . snd
+funcCdr = mkFunc1 $ expectCons >=> Cell.deref . snd
 
 funcSetCar :: (MonadIO m, MonadEval n) => m (Object n)
 funcSetCar =
   mkFunc2 \x y -> do
     (car, _) <- expectCons x
-    undef <$ (car .= y)
+    undef <$ Cell.set car y
 
 funcSetCdr :: (MonadIO m, MonadEval n) => m (Object n)
 funcSetCdr =
   mkFunc2 \x y -> do
     (_, cdr) <- expectCons x
-    undef <$ (cdr .= y)
+    undef <$ Cell.set cdr y
 
 funcCallCC :: (MonadIO m, MonadEval n) => m (Object n)
 funcCallCC =

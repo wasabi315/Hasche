@@ -3,7 +3,7 @@ cradle:
     - path: "src"
       component: "lib:hasche"
 
-    - path: "app/Main.hs"
+    - path: "app"
       component: "hasche:exe:hasche"
 
     - path: "test"

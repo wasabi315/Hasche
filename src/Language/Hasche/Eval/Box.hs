@@ -1,9 +1,9 @@
-module Language.Hasche.Box
+module Language.Hasche.Eval.Box
   ( Box,
     Loc,
-    alloc,
     loc,
-    val,
+    new,
+    deref,
   )
 where
 
@@ -20,11 +20,11 @@ type Loc = Unique
 instance Eq (Box a) where
   Box _ x == Box _ y = x == y
 
-alloc :: MonadIO m => a -> m (Box a)
-alloc x = Box x <$> liftIO newUnique
+new :: MonadIO m => a -> m (Box a)
+new x = Box x <$> liftIO newUnique
 
 loc :: Box a -> Loc
 loc (Box _ l) = l
 
-val :: Box a -> a
-val (Box x _) = x
+deref :: Box a -> a
+deref (Box x _) = x
