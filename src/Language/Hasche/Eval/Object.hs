@@ -17,7 +17,6 @@ module Language.Hasche.Eval.Object
     num,
     str,
     sym,
-    gensym,
     port,
     cons,
     syn,
@@ -52,7 +51,6 @@ import GHC.IO.Unsafe
 import Language.Hasche.Eval.Env qualified as Env
 import Language.Hasche.Syntax.SExpr
 import System.IO
-import Text.StringRandom
 
 -- data types
 
@@ -75,15 +73,6 @@ data ObjKind m
   | Func_ ([Object m] -> m (Object m))
   | Cont_ (Object m -> m (Object m))
 
--- Symbol table
-
-type SymTable m = BasicHashTable Text (Object m)
-
--- global symbol table
-_symtbl :: SymTable m
-_symtbl = unsafePerformIO HT.new
-{-# NOINLINE _symtbl #-}
-
 -- object constructors
 
 -- allocate only once
@@ -103,6 +92,11 @@ num n = liftIO . Box.new $ Num_ n
 str :: MonadIO m => Text -> m (Object n)
 str s = liftIO . Box.new $ Str_ s
 
+-- Maps symbol name to object
+_symtbl :: BasicHashTable Text (Object m)
+_symtbl = unsafePerformIO HT.new
+{-# NOINLINE _symtbl #-}
+
 -- May create new symbol
 sym :: MonadIO m => Text -> m (Object n)
 sym s = liftIO $
@@ -111,16 +105,6 @@ sym s = liftIO $
     Nothing -> do
       obj <- Box.new $ Sym_ s
       pure (Just obj, obj)
-
-gensym :: MonadIO m => m (Object n)
-gensym = do
-  s <- liftIO $ stringRandomIO "#G\\d\\d\\d\\d\\d"
-  mo <- liftIO $ HT.mutateIO _symtbl s \case
-    Just obj -> pure (Just obj, Nothing)
-    Nothing -> do
-      obj <- Box.new $ Sym_ s
-      pure (Just obj, Just obj)
-  maybe gensym pure mo
 
 port :: MonadIO m => Handle -> m (Object n)
 port h = liftIO . Box.new $ Port_ h

@@ -16,6 +16,7 @@ import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
+import Data.Unique
 import Language.Hasche.Eval.Error
 import Language.Hasche.Eval.Eval
 import Language.Hasche.Eval.Format
@@ -189,7 +190,9 @@ funcSymStr :: (MonadIO m, MonadEval n) => m (Object n)
 funcSymStr = mkFunc1 $ expectSym >=> str
 
 funcGensym :: (MonadIO m, MonadEval n) => m (Object n)
-funcGensym = mkFunc0 gensym
+funcGensym = mkFunc0 . liftIO $ do
+  uniq <- newUnique
+  sym $ "#G" <> T.pack (show $ hashUnique uniq)
 
 funcCons :: (MonadIO m, MonadEval n) => m (Object n)
 funcCons = mkFunc2 cons
