@@ -16,10 +16,10 @@ where
 import Control.Exception.Safe
 import Control.Monad.Cont
 import Control.Monad.Reader
+import Data.Cell qualified as Cell
 import Data.Foldable.Extra
 import Data.List.NonEmpty qualified as NE
 import Data.Maybe
-import Language.Hasche.Eval.Cell qualified as Cell
 import Language.Hasche.Eval.Env qualified as Env
 import Language.Hasche.Eval.Error
 import Language.Hasche.Eval.Object

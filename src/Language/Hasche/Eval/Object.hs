@@ -41,14 +41,14 @@ where
 
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Box (Box)
+import Data.Box qualified as Box
+import Data.Cell (Cell)
+import Data.Cell qualified as Cell
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.Text (Text)
 import GHC.IO.Unsafe
-import Language.Hasche.Eval.Box (Box)
-import Language.Hasche.Eval.Box qualified as Box
-import Language.Hasche.Eval.Cell (Cell)
-import Language.Hasche.Eval.Cell qualified as Cell
 import Language.Hasche.Eval.Env qualified as Env
 import Language.Hasche.Syntax.SExpr
 import System.IO

@@ -1,4 +1,4 @@
-module Language.Hasche.Eval.Box
+module Data.Box
   ( Box,
     Loc,
     loc,
@@ -11,12 +11,12 @@ import Control.Monad.IO.Class
 import Data.Unique
 
 -- Immutable box
--- Supports pseudo-pointer-equality for implementing scheme's eq? procedure.
 
 data Box a = Box a !Loc
 
 type Loc = Unique
 
+-- Pseudo-pointer-equality
 instance Eq (Box a) where
   Box _ x == Box _ y = x == y
 

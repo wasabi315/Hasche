@@ -11,11 +11,11 @@ module Language.Hasche.Builtins.SpecialForms where
 import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.Cont
+import Data.Cell qualified as Cell
 import Data.Foldable
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as M
 import Data.Maybe
-import Language.Hasche.Eval.Cell qualified as Cell
 import Language.Hasche.Eval.Env qualified as Env
 import Language.Hasche.Eval.Error
 import Language.Hasche.Eval.Eval

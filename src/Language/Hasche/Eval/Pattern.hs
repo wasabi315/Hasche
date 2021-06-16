@@ -12,13 +12,13 @@ module Language.Hasche.Eval.Pattern
 where
 
 import Control.Monad
+import Data.Cell qualified as Cell
 import Data.Foldable
 import Data.Functor.Compose
 import Data.Map.Merge.Strict qualified as M
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as M
 import Data.Text (Text)
-import Language.Hasche.Eval.Cell qualified as Cell
 import Language.Hasche.Eval.Eval
 import Language.Hasche.Eval.Object
 import Language.Hasche.Syntax.SExpr

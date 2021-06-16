@@ -12,6 +12,8 @@ module Language.Hasche.Eval.Format
 where
 
 import Control.Monad.IO.Class
+import Data.Box qualified as Box
+import Data.Cell qualified as Cell
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.IORef
@@ -20,8 +22,6 @@ import Data.Text.Lazy qualified as TL
 import Data.Text.Lazy.Builder (Builder)
 import Data.Text.Lazy.Builder qualified as TB
 import Data.Text.Lazy.Builder.Int qualified as TB
-import Language.Hasche.Eval.Box qualified as Box
-import Language.Hasche.Eval.Cell qualified as Cell
 import Language.Hasche.Eval.Object
 
 -- Stringify Object

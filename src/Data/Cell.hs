@@ -1,4 +1,4 @@
-module Language.Hasche.Eval.Cell
+module Data.Cell
   ( Cell,
     new,
     deref,
@@ -10,7 +10,6 @@ import Control.Monad.IO.Class
 import Data.IORef
 
 -- Mutable cell
--- For variables and cons cells
 
 type Cell = IORef
 

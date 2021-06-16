@@ -11,11 +11,11 @@ import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.Cont hiding (cont)
 import Control.Monad.Reader
+import Data.Cell qualified as Cell
 import Data.Foldable
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
-import Language.Hasche.Eval.Cell qualified as Cell
 import Language.Hasche.Eval.Error
 import Language.Hasche.Eval.Eval
 import Language.Hasche.Eval.Format
