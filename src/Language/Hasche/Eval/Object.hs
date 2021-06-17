@@ -87,10 +87,10 @@ false = unsafePerformIO (Box.new $ Bool_ False)
 {-# NOINLINE false #-}
 
 num :: MonadIO m => Integer -> m (Object n)
-num n = liftIO . Box.new $ Num_ n
+num n = Box.new $ Num_ n
 
 str :: MonadIO m => Text -> m (Object n)
-str s = liftIO . Box.new $ Str_ s
+str s = Box.new $ Str_ s
 
 -- Maps symbol name to object
 _symtbl :: BasicHashTable Text (Object m)
@@ -107,7 +107,7 @@ sym s = liftIO $
       pure (Just obj, obj)
 
 port :: MonadIO m => Handle -> m (Object n)
-port h = liftIO . Box.new $ Port_ h
+port h = Box.new $ Port_ h
 
 cons :: MonadIO m => Object n -> Object n -> m (Object n)
 cons car cdr = do
@@ -116,13 +116,13 @@ cons car cdr = do
   Box.new $ Cons_ r1 r2
 
 syn :: MonadIO m => (Env n -> [SExpr] -> n (Object n)) -> m (Object n)
-syn f = liftIO . Box.new $ Syn_ f
+syn f = Box.new $ Syn_ f
 
 func :: MonadIO m => ([Object n] -> n (Object n)) -> m (Object n)
-func f = liftIO . Box.new $ Func_ f
+func f = Box.new $ Func_ f
 
 cont :: MonadIO m => (Object n -> n (Object n)) -> m (Object n)
-cont k = liftIO . Box.new $ Cont_ k
+cont k = Box.new $ Cont_ k
 
 -- object destructors
 
