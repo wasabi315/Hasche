@@ -1,6 +1,3 @@
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 
 module Language.Hasche.Eval.Env

@@ -1,9 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 
 module Language.Hasche.Builtins.Primitives where
 

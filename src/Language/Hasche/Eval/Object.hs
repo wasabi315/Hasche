@@ -1,10 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Language.Hasche.Eval.Object
   ( Object,

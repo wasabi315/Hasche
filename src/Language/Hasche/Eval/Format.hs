@@ -1,8 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
 
 module Language.Hasche.Eval.Format

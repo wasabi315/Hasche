@@ -1,9 +1,5 @@
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE StrictData #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module Language.Hasche.Syntax.SExpr
   ( SExpr (..),

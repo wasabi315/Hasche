@@ -1,9 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Language.Hasche

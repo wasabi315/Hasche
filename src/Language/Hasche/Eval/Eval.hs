@@ -1,9 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Language.Hasche.Eval.Eval
   ( MonadEval,

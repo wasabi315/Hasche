@@ -1,8 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE StrictData #-}
 
 module Language.Hasche.Eval.Pattern

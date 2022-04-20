@@ -12,7 +12,57 @@ extra-source-files:
     CHANGELOG.md
     lib/*.scm
 
+common defaults
+    default-language: Haskell2010
+    ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O1
+    default-extensions:
+        EmptyCase
+        PostfixOperators
+        TupleSections
+        ImportQualifiedPost
+        NamedFieldPuns
+        RecordWildCards
+        BangPatterns
+        LambdaCase
+        MultiWayIf
+        ViewPatterns
+        BinaryLiterals
+        HexFloatLiterals
+        NumericUnderscores
+        OverloadedStrings
+        GADTs
+        RankNTypes
+        TypeApplications
+        PolyKinds
+        StandaloneKindSignatures
+        ExistentialQuantification
+        TypeOperators
+        ConstraintKinds
+        TypeFamilies
+        ExplicitForAll
+        PartialTypeSignatures
+        KindSignatures
+        NamedWildCards
+        ScopedTypeVariables
+        FlexibleContexts
+        FlexibleInstances
+        FunctionalDependencies
+        MultiParamTypeClasses
+        ConstrainedClassMethods
+        InstanceSigs
+        TypeSynonymInstances
+        DeriveDataTypeable
+        DeriveFoldable
+        DeriveFunctor
+        DeriveTraversable
+        StandaloneDeriving
+        EmptyDataDeriving
+        DeriveLift
+        GeneralisedNewtypeDeriving
+        DeriveGeneric
+
 library
+    import: defaults
     exposed-modules:  Language.Hasche
                     , Language.Hasche.Syntax.Reader
                     , Language.Hasche.Syntax.SExpr
@@ -39,10 +89,9 @@ library
                     , safe-exceptions
                     , file-embed
     hs-source-dirs:   src
-    default-language: Haskell2010
-    ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O1
 
 executable hasche
+    import: defaults
     main-is:          Main.hs
     other-modules:    Commands.Exec
                     , Commands.REPL
@@ -54,13 +103,10 @@ executable hasche
                     , hasche
 
     hs-source-dirs:   app
-    default-language: Haskell2010
-    ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O1
 
 test-suite hasche-test
-    default-language: Haskell2010
+    import: defaults
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          MyLibTest.hs
     build-depends:    base ^>=4.14.1.0
-    ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O1

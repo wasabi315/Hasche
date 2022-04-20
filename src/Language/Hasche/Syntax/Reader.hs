@@ -1,8 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
 
 module Language.Hasche.Syntax.Reader
   ( readSExprList,

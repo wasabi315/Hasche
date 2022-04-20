@@ -1,5 +1,3 @@
-{-# LANGUAGE ImportQualifiedPost #-}
-
 module Language.Hasche.Eval.Error where
 
 import Control.Exception.Safe

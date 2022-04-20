@@ -1,7 +1,3 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-
 module Language.Hasche.Eval
   ( EvalM,
     runEvalM,
