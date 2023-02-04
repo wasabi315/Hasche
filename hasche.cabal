@@ -79,7 +79,7 @@ library
     other-modules:    Data.Foldable.Extra
                     , Data.Box
                     , Data.Cell
-    build-depends:    base ^>=4.14.1.0
+    build-depends:    base ^>=4.16.4.0
                     , text
                     , megaparsec
                     , mtl
@@ -95,7 +95,7 @@ executable hasche
     main-is:          Main.hs
     other-modules:    Commands.Exec
                     , Commands.REPL
-    build-depends:    base ^>=4.14.1.0
+    build-depends:    base ^>=4.16.4.0
                     , text
                     , optparse-applicative
                     , haskeline
@@ -109,4 +109,4 @@ test-suite hasche-test
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          MyLibTest.hs
-    build-depends:    base ^>=4.14.1.0
+    build-depends:    base ^>=4.16.4.0
