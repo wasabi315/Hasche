@@ -9,35 +9,26 @@ module Language.Hasche.Eval.Env
   )
 where
 
-import Control.Monad
+import Control.Applicative (asum)
 import Control.Monad.IO.Class
 import Data.Cell (Cell)
 import Data.Cell qualified as Cell
 import Data.HashTable.IO (BasicHashTable)
 import Data.HashTable.IO qualified as HT
 import Data.Hashable
+import Data.List.NonEmpty qualified as NL
 import Prelude hiding (lookup)
 
-data Env k v = Env
-  { binds :: BasicHashTable k (Cell v),
-    parent :: Maybe (Env k v)
-  }
+newtype Env k v = Env (NL.NonEmpty (BasicHashTable k (Cell v)))
 
 empty :: MonadIO m => m (Env k v)
-empty = flip Env Nothing <$> liftIO HT.new
+empty = Env . NL.singleton <$> liftIO HT.new
 
 child :: MonadIO m => Env k v -> m (Env k v)
-child env = flip Env (Just env) <$> liftIO HT.new
+child (Env envs) = Env . (`NL.cons` envs) <$> liftIO HT.new
 
-lookup :: (MonadIO m, Eq k, Hashable k) => Env k v -> k -> m (Maybe (Cell v))
-lookup e k = liftIO $ lookup' e
-  where
-    lookup' Env {..} =
-      HT.lookup binds k >>= \case
-        Just v -> pure (Just v)
-        Nothing -> case parent of
-          Just env' -> lookup' env'
-          Nothing -> pure Nothing
+lookup :: (MonadIO m, Hashable k) => Env k v -> k -> m (Maybe (Cell v))
+lookup (Env envs) k = liftIO $ asum <$> traverse (`HT.lookup` k) envs
 
-bind :: (MonadIO m, Eq k, Hashable k) => Env k v -> k -> v -> m ()
-bind e k v = liftIO $ Cell.new v >>= HT.insert (binds e) k
+bind :: (MonadIO m, Hashable k) => Env k v -> k -> v -> m ()
+bind (Env envs) k v = liftIO $ Cell.new v >>= HT.insert (NL.head envs) k
