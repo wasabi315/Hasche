@@ -60,10 +60,13 @@ common defaults
         DeriveLift
         GeneralisedNewtypeDeriving
         DeriveGeneric
+        DerivingStrategies
+        BlockArguments
 
 library
     import: defaults
     exposed-modules:  Language.Hasche
+                    , Language.Hasche.Types
                     , Language.Hasche.Syntax.Reader
                     , Language.Hasche.Syntax.SExpr
                     , Language.Hasche.Eval
