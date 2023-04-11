@@ -69,6 +69,7 @@ library
                     , Language.Hasche.Types
                     , Language.Hasche.Reader
                     , Language.Hasche.Format
+                    , Language.Hasche.Evaluate
                     , Language.Hasche.Syntax.Reader
                     , Language.Hasche.Syntax.SExpr
                     , Language.Hasche.Eval

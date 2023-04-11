@@ -6,11 +6,11 @@ module Language.Hasche.Types
     runEval,
     Env,
     emptyEnv,
-    withNewScope,
+    newScope,
     findObj,
     bindObj,
     Error (..),
-    Object (..),
+    Object,
     ObjID,
     ObjRef,
     ObjKind,
@@ -40,6 +40,7 @@ module Language.Hasche.Types
     pattern Syn,
     pattern Func,
     pattern Cont,
+    listify,
     deref,
     setRef,
   )
@@ -49,16 +50,16 @@ import Control.Applicative (asum, liftA2)
 import Control.Exception.Safe (Exception (displayException), MonadThrow, catch)
 import Control.Monad.Cont (ContT (..), MonadCont)
 import Control.Monad.IO.Class (MonadIO (..))
-import Control.Monad.Reader (MonadReader, ReaderT (..), asks, local)
+import Control.Monad.Reader (MonadReader, ReaderT (..), asks)
 import Data.Foldable (foldrM)
 import Data.HashTable.IO qualified as HT
+import Data.Hashable (Hashable)
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.List.NonEmpty qualified as NE
 import Data.Text qualified as T
 import Data.Unique (Unique, newUnique)
 import GHC.IO (unsafePerformIO)
 import System.IO (Handle)
-import Data.Hashable (Hashable)
 
 -- evaluator
 
@@ -68,6 +69,7 @@ newtype Eval a = Eval (ReaderT Env (ContT Object IO) a)
       Applicative,
       Monad,
       MonadIO,
+      MonadFail,
       MonadReader Env,
       MonadCont,
       MonadThrow
@@ -98,20 +100,16 @@ data Env = Env
 emptyEnv :: MonadIO m => m Env
 emptyEnv = liftIO $ liftA2 Env (NE.singleton <$> HT.new) HT.new
 
-withNewScope :: Eval a -> Eval a
-withNewScope m = do
+newScope :: MonadIO m => Env -> m Env
+newScope env = do
   bind <- liftIO HT.new
-  flip local m \env -> env {binds = NE.cons bind env.binds}
+  pure env {binds = NE.cons bind env.binds}
 
-findObj :: T.Text -> Eval (Maybe Object)
-findObj k = do
-  binds <- asks binds
-  liftIO $ asum <$> traverse (`HT.lookup` k) binds
+findObj :: MonadIO m => Env -> T.Text -> m (Maybe Object)
+findObj env k = liftIO $ asum <$> traverse (`HT.lookup` k) (binds env)
 
-bindObj :: T.Text -> Object -> Eval ()
-bindObj k o = do
-  binds <- asks binds
-  liftIO $ HT.insert (NE.head binds) k o
+bindObj :: MonadIO m => Env -> T.Text -> Object -> m ()
+bindObj env k o = liftIO $ HT.insert (NE.head (binds env)) k o
 
 -- object
 
@@ -133,9 +131,9 @@ data ObjKind
   | Sym_ T.Text
   | Port_ Handle
   | Cons_ ObjRef ObjRef
-  | Syn_ (Env -> Object -> Eval Object)
+  | Syn_ (Env -> [Object] -> Eval Object)
   | Func_ ([Object] -> Eval Object)
-  | Cont_ ([Object] -> Eval Object)
+  | Cont_ (Object -> Eval Object)
 
 -- object constructors
 
@@ -180,13 +178,13 @@ list = foldrM cons empty
 dlist :: NE.NonEmpty Object -> Object -> Eval Object
 dlist = flip $ foldrM cons
 
-syn :: (Env -> Object -> Eval Object) -> Eval Object
+syn :: (Env -> [Object] -> Eval Object) -> Eval Object
 syn = newObject . Syn_
 
 func :: ([Object] -> Eval Object) -> Eval Object
 func = newObject . Func_
 
-cont :: ([Object] -> Eval Object) -> Eval Object
+cont :: (Object -> Eval Object) -> Eval Object
 cont = newObject . Cont_
 
 -- object destrcutors
@@ -218,16 +216,26 @@ pattern Port h <- Object _ (Port_ h)
 pattern Cons :: ObjRef -> ObjRef -> Object
 pattern Cons r1 r2 <- Object _ (Cons_ r1 r2)
 
-pattern Syn :: (Env -> Object -> Eval Object) -> Object
+pattern Syn :: (Env -> [Object] -> Eval Object) -> Object
 pattern Syn f <- Object _ (Syn_ f)
 
 pattern Func :: ([Object] -> Eval Object) -> Object
 pattern Func f <- Object _ (Func_ f)
 
-pattern Cont :: ([Object] -> Eval Object) -> Object
+pattern Cont :: (Object -> Eval Object) -> Object
 pattern Cont k <- Object _ (Cont_ k)
 
 {-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Func, Cont #-}
+
+listify :: Object -> Eval (Maybe (NE.NonEmpty Object))
+listify (Cons r1 r2) = do
+  o1 <- deref r1
+  o2 <- deref r2
+  case o2 of
+    Empty -> pure . Just $ NE.singleton o1
+    o@(Cons {}) -> fmap (NE.cons o1) <$> listify o
+    _ -> pure Nothing
+listify _ = pure Nothing
 
 -- mutable reference
 
