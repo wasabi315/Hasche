@@ -67,6 +67,7 @@ library
     import: defaults
     exposed-modules:  Language.Hasche
                     , Language.Hasche.Types
+                    , Language.Hasche.Parser
                     , Language.Hasche.Syntax.Reader
                     , Language.Hasche.Syntax.SExpr
                     , Language.Hasche.Eval

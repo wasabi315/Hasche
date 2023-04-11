@@ -23,6 +23,8 @@ module Language.Hasche.Types
     sym,
     port,
     cons,
+    list,
+    dlist,
     syn,
     func,
     cont,
@@ -48,6 +50,7 @@ import Control.Exception.Safe (Exception (displayException), MonadThrow, catch)
 import Control.Monad.Cont (ContT (..), MonadCont)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Reader (MonadReader, ReaderT (..), asks, local)
+import Data.Foldable (foldrM)
 import Data.HashTable.IO qualified as HT
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import Data.List.NonEmpty qualified as NE
@@ -168,6 +171,12 @@ cons car cdr = liftIO do
   car' <- newIORef car
   cdr' <- newIORef cdr
   newObject $ Cons_ (ObjRef car') (ObjRef cdr')
+
+list :: NE.NonEmpty Object -> Eval Object
+list = foldrM cons empty
+
+dlist :: NE.NonEmpty Object -> Object -> Eval Object
+dlist = flip $ foldrM cons
 
 syn :: (Env -> Object -> Eval Object) -> Eval Object
 syn = newObject . Syn_
