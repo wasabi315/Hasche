@@ -58,6 +58,7 @@ import Data.Text qualified as T
 import Data.Unique (Unique, newUnique)
 import GHC.IO (unsafePerformIO)
 import System.IO (Handle)
+import Data.Hashable (Hashable)
 
 -- evaluator
 
@@ -121,6 +122,7 @@ newtype ObjRef = ObjRef (IORef Object)
 
 newtype ObjID = ObjID Unique
   deriving stock (Eq)
+  deriving newtype (Hashable)
 
 data ObjKind
   = Undef_

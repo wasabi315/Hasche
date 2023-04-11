@@ -68,6 +68,7 @@ library
     exposed-modules:  Language.Hasche
                     , Language.Hasche.Types
                     , Language.Hasche.Parser
+                    , Language.Hasche.Format
                     , Language.Hasche.Syntax.Reader
                     , Language.Hasche.Syntax.SExpr
                     , Language.Hasche.Eval
