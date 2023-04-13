@@ -88,6 +88,7 @@ num n = Box.new $ Num_ n
 str :: MonadIO m => Text -> m (Object n)
 str s = Box.new $ Str_ s
 
+-- FIXME: not type-safe
 -- Maps symbol name to object
 _symtbl :: BasicHashTable Text (Object m)
 _symtbl = unsafePerformIO HT.new
