@@ -2,34 +2,59 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Language.Hasche
-  ( newInterpreter,
-    pretty,
-    Object,
-    Error,
+  ( exec,
+    mkInteractive,
   )
 where
 
 import Control.Exception.Safe
+import Control.Monad
+import Control.Monad.IO.Class
 import Data.FileEmbed
-import Data.Text (Text)
-import Language.Hasche.Builtins
+import Data.IORef
+import Data.Text qualified as T
+import Language.Hasche.Error
 import Language.Hasche.Eval
-import Language.Hasche.Eval.Error
-import Language.Hasche.Syntax.Reader
+import Language.Hasche.Object
+import Language.Hasche.Pretty
+import Language.Hasche.Primitives
+import Language.Hasche.Reader
 
-newInterpreter :: FilePath -> IO (Text -> IO (Either Error Object))
-newInterpreter fp = do
-  topEnv <- builtinEnv
+runMany ::
+  (MonadThrow m, MonadIO m) =>
+  FilePath ->
+  T.Text ->
+  EvalT r m (Object (EvalT r m))
+runMany fp = readObjectList fp >=> evalMany
 
-  let run txt =
-        case readSExprList fp txt of
-          Left e -> pure (Left (ReadError e))
-          Right prog -> evaluate topEnv prog
+run :: (MonadThrow m, MonadIO m) => T.Text -> EvalT r m (Object (EvalT r m))
+run = readObject >=> eval
 
-  -- load standard library
-  res <- run $(makeRelativeToProject "lib/stdlib.scm" >>= embedStringFile)
-  case res of
-    Left e -> throwString $ "Failed to load standard library: " ++ displayException e
-    Right _ -> pure ()
+prepareStdlib :: (MonadThrow m, MonadIO m) => EvalT r m ()
+prepareStdlib = void do
+  runMany "lib/stdlib.scm" $(makeRelativeToProject "lib/stdlib.scm" >>= embedStringFile)
 
-  pure run
+exec ::
+  (MonadIO m, MonadCatch m) =>
+  FilePath ->
+  T.Text ->
+  m (Either Error ())
+exec fp src = do
+  env <- emptyEnv
+  runEvalT env do
+    preparePrimitives
+    prepareStdlib
+    void $ runMany fp src
+
+mkInteractive :: (MonadIO m, MonadCatch m) => m (T.Text -> m (Either Error T.Text))
+mkInteractive = do
+  env <- emptyEnv
+  initalized <- liftIO $ newIORef False
+  pure \input -> runEvalT env do
+    ini <- liftIO $ readIORef initalized
+    unless ini do
+      preparePrimitives
+      prepareStdlib
+      liftIO $ writeIORef initalized True
+    obj <- run input
+    display obj

@@ -19,7 +19,7 @@ repl :: IO ()
 repl = runInputT defaultSettings do
   liftIO $ hSetBuffering stdout NoBuffering
   outputStrLn headerText
-  interpret <- liftIO $ Hasche.newInterpreter "<interactive>"
+  interpret <- Hasche.mkInteractive
 
   withInterrupt . forever . handleInterrupt (outputStrLn "Interrupted") $ do
     minput <- getInputLine promptText
@@ -29,10 +29,10 @@ repl = runInputT defaultSettings do
         | Just m <- lookup cmd commands -> m
         | otherwise -> outputStrLn $ "Unknown command: " ++ cmd
       Just txt -> do
-        result <- liftIO $ interpret (T.pack txt)
+        result <- interpret (T.pack txt)
         case result of
           Left err -> outputStrLn (displayException err)
-          Right obj -> liftIO (Hasche.pretty obj) >>= outputStrLn . T.unpack
+          Right objTxt -> outputStrLn $ T.unpack objTxt
 
 headerText :: String
 headerText =
