@@ -8,6 +8,7 @@ import Data.Foldable
 import Data.Function
 import Data.Functor.Compose
 import Data.Text qualified as T
+import Data.Traversable
 import Language.Hasche.Error
 import Language.Hasche.Eval
 import Language.Hasche.Object
@@ -16,9 +17,17 @@ import Prelude hiding (pred)
 match ::
   (MonadIO m, MonadThrow m) =>
   Object (EvalT m) ->
-  Object (EvalT m) ->
-  EvalT m (Maybe (EvalT m ()))
-match pat obj = parsePattern pat >>= flip matcher obj
+  [(Object (EvalT m), Object (EvalT m))] ->
+  EvalT m (Object (EvalT m))
+match expr arms = do
+  obj <- eval expr
+  arms' <- for arms \(pat, body) -> do
+    parsedPat <- parsePattern pat
+    maybeBinder <- matcher parsedPat obj
+    pure $ fmap (,body) maybeBinder
+  case asum arms' of
+    Nothing -> pure undef
+    Just (binder, body) -> withNewScope $ binder *> eval body
 
 -- Pattern
 

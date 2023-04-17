@@ -140,7 +140,10 @@ eval code =
     NonList (Sym s) -> lookup s
     NonList obj' -> pure obj'
     List [] -> pure empty
-    List (o : os) -> apply o os
+    List (expr : exprs) -> do
+      eval expr >>= \case
+        Syn s -> s exprs
+        obj -> traverse eval exprs >>= apply obj
     DList _ _ -> throw EInproperList
 
 apply ::
@@ -148,9 +151,7 @@ apply ::
   Object (EvalT m) ->
   [Object (EvalT m)] ->
   EvalT m (Object (EvalT m))
-apply obj objs =
-  eval obj >>= \case
-    Syn s -> s objs
-    Func f -> traverse eval objs >>= f
-    Cont k -> eval (fromMaybe undef $ listToMaybe objs) >>= k
-    _ -> throw EInvalidApplication
+apply obj objs = case obj of
+  Func f -> f objs
+  Cont k -> k $ fromMaybe undef (listToMaybe objs)
+  _ -> throw EInvalidApplication
