@@ -13,6 +13,7 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.Char
 import Data.List.NonEmpty qualified as NE
+import Data.Maybe
 import Data.Text qualified as T
 import Data.Void
 import Language.Hasche.Error
@@ -33,8 +34,8 @@ readObjectList path input = do
 
 readObject :: (MonadThrow m, MonadIO m) => T.Text -> EvalT r m (Object (EvalT r m))
 readObject input = do
-  res <- runParserT (space *> pExpr <* eof) "" input
-  either (throw . ERead) pure res
+  res <- runParserT (space *> optional pExpr <* eof) "" input
+  either (throw . ERead) (pure . fromMaybe undef) res
 
 readNum :: (MonadThrow m, MonadIO m) => T.Text -> EvalT r m (Object (EvalT r m))
 readNum input = do
