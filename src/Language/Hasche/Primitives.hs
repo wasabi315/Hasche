@@ -22,7 +22,7 @@ import System.Exit
 import System.IO
 import Prelude hiding (pred)
 
-preparePrimitives :: (MonadIO m, MonadThrow m) => EvalT m ()
+preparePrimitives :: (MonadIO m, MonadThrow m) => EvalT r m ()
 preparePrimitives = do
   bind "define" =<< synDefine
   bind "define-macro" =<< synDefMacro
@@ -90,65 +90,71 @@ preparePrimitives = do
 
   bind "exit" =<< funcExit
 
-funcEval :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcEval :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcEval = mkFunc1 $ withToplevelEnv . eval
 
-funcApply :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcApply :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcApply = func \case
-  [f, args] ->
-    listify args >>= \case
-      List args' -> apply f args'
-      _ -> throw EType
-  _ -> throw EArityMismatch
+  [] -> throw EArityMismatch
+  [_] -> throw EArityMismatch
+  f : args -> do
+    args' <- (init args ++) <$> pairToList (last args)
+    apply f args'
+  where
+    pairToList obj =
+      listify obj <&> \case
+        NonList obj' -> [obj']
+        List obj' -> obj'
+        DList objs obj' -> NE.toList objs ++ [obj']
 
-funcIsNull :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcIsNull :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcIsNull = mkFunc1 \case
   Empty -> pure true
   _ -> pure false
 
-funcIsBool :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcIsBool :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcIsBool = mkFunc1 \case
   Bool _ -> pure true
   _ -> pure false
 
-funcIsNum :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcIsNum :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcIsNum = mkFunc1 \case
   Num _ -> pure true
   _ -> pure false
 
-funcIsStr :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcIsStr :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcIsStr = mkFunc1 \case
   Str _ -> pure true
   _ -> pure false
 
-funcIsSym :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcIsSym :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcIsSym = mkFunc1 \case
   Sym _ -> pure true
   _ -> pure false
 
-funcIsPair :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcIsPair :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcIsPair = mkFunc1 \case
   Cons _ _ -> pure true
   _ -> pure false
 
-funcIsProc :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcIsProc :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcIsProc = mkFunc1 \case
   Func _ -> pure true
   _ -> pure false
 
-funcAdd :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcAdd :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcAdd = mkNumFoldFunc (+) 0
 
-funcMul :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcMul :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcMul = mkNumFoldFunc (*) 1
 
-funcSub :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcSub :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcSub = func do
   traverse expectNum >=> \case
     [] -> throw EArityMismatch
     n : ns -> num $! n - foldl' (+) 0 ns
 
-funcDiv :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcDiv :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcDiv = func do
   traverse expectNum >=> \case
     [] -> throw EArityMismatch
@@ -157,41 +163,41 @@ funcDiv = func do
       when (d == 0) $ throw EDividedByZero
       num $! n `div` d
 
-funcMod :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcMod :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcMod = mkFunc2 \x y -> do
   n <- expectNum x
   m <- expectNum y
   when (m == 0) $ throw EDividedByZero
   num $! n `mod` m
 
-funcNumEq :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcNumEq :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcNumEq = mkNumBinPred (==)
 
-funcGt :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcGt :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcGt = mkNumBinPred (>)
 
-funcGe :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcGe :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcGe = mkNumBinPred (>=)
 
-funcLt :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcLt :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcLt = mkNumBinPred (<)
 
-funcLe :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcLe :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcLe = mkNumBinPred (<=)
 
-funcEq, funcEqv, funcEqual :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcEq, funcEqv, funcEqual :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcEq = mkFunc2 eq
 funcEqv = mkFunc2 eqv
 funcEqual = mkFunc2 equal
 
-eq :: (MonadIO m) => Object (EvalT m) -> Object (EvalT m) -> EvalT m (Object (EvalT m))
+eq :: (MonadIO m) => Object (EvalT r m) -> Object (EvalT r m) -> EvalT r m (Object (EvalT r m))
 eq x y = pure if objID x == objID y then true else false
 
-eqv :: (MonadIO m) => Object (EvalT m) -> Object (EvalT m) -> EvalT m (Object (EvalT m))
+eqv :: (MonadIO m) => Object (EvalT r m) -> Object (EvalT r m) -> EvalT r m (Object (EvalT r m))
 eqv (Num n) (Num m) = pure if n == m then true else false
 eqv x y = eq x y
 
-equal :: forall m. (MonadIO m, MonadThrow m) => Object (EvalT m) -> Object (EvalT m) -> EvalT m (Object (EvalT m))
+equal :: forall r m. (MonadIO m, MonadThrow m) => Object (EvalT r m) -> Object (EvalT r m) -> EvalT r m (Object (EvalT r m))
 equal (Cons ref1 ref2) (Cons ref3 ref4) = do
   obj1 <- deref ref1
   obj3 <- deref ref3
@@ -203,61 +209,61 @@ equal (Cons ref1 ref2) (Cons ref3 ref4) = do
       equal obj2 obj4
 equal x y = eqv x y
 
-funcStrAppend :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcStrAppend :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcStrAppend = func $ traverse expectStr >=> str . T.concat
 
-funcStrNum :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcStrNum :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcStrNum = mkFunc1 $ expectStr >=> readNum
 
-funcNumStr :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcNumStr :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcNumStr = mkFunc1 $ expectNum >=> str . T.pack . show
 
-funcStrSym :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcStrSym :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcStrSym = mkFunc1 $ expectStr >=> sym
 
-funcSymStr :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcSymStr :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcSymStr = mkFunc1 $ expectSym >=> str
 
-funcGensym :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcGensym :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcGensym = mkFunc0 gensym
 
-funcCons :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcCons :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcCons = mkFunc2 cons
 
-funcCar :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcCar :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcCar = mkFunc1 $ expectCons >=> deref . fst
 
-funcCdr :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcCdr :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcCdr = mkFunc1 $ expectCons >=> deref . snd
 
-funcSetCar :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcSetCar :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcSetCar = mkFunc2 \x y -> do
   (car, _) <- expectCons x
   undef <$ setRef car y
 
-funcSetCdr :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcSetCdr :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcSetCdr = mkFunc2 \x y -> do
   (_, cdr) <- expectCons x
   undef <$ setRef cdr y
 
-funcCallCC :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcCallCC :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcCallCC = mkFunc1 \arg -> callCC $ cont >=> apply arg . pure
 
-funcOpenInputFile :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcOpenInputFile :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcOpenInputFile = mkFileOpenFunc ReadMode
 
-funcOpenOutputFile :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcOpenOutputFile :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcOpenOutputFile = mkFileOpenFunc WriteMode
 
-funcCloseInputPort :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcCloseInputPort :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcCloseInputPort = mkFunc1 \arg -> do
   h <- expectPort arg
   undef <$ liftIO (hClose h)
 
-funcCloseOutputPort :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcCloseOutputPort :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcCloseOutputPort = funcCloseInputPort
 
-funcRead :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcRead :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcRead = func \args -> do
   h <- case args of
     [] -> pure stdin
@@ -266,7 +272,7 @@ funcRead = func \args -> do
   txt <- liftIO (T.hGetContents h)
   list =<< readObjectList "" txt
 
-funcDisplay :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcDisplay :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcDisplay = func \args -> do
   (obj, h) <- case args of
     [obj] -> pure (obj, stdout)
@@ -274,7 +280,7 @@ funcDisplay = func \args -> do
     _ -> throw EArityMismatch
   undef <$ (display obj >>= liftIO . T.hPutStr h)
 
-funcWrite :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcWrite :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcWrite = func \args -> do
   (obj, h) <- case args of
     [o] -> pure (o, stdout)
@@ -282,78 +288,85 @@ funcWrite = func \args -> do
     _ -> throw EArityMismatch
   undef <$ (write obj >>= liftIO . T.hPutStr h)
 
-funcExit :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcExit :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcExit = mkFunc0 $ throw ExitSuccess
 
-funcError :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+funcError :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcError = func $ traverse display >=> throw . EUser . T.concat
 
 -- smart constructors
 
-mkFunc0 :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m)) -> EvalT m (Object (EvalT m))
+mkFunc0 :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m)) -> EvalT r m (Object (EvalT r m))
 mkFunc0 x = func \case
   [] -> x
   _ -> throw EArityMismatch
 
-mkFunc1 :: (MonadIO m, MonadThrow m) => (Object (EvalT m) -> EvalT m (Object (EvalT m))) -> EvalT m (Object (EvalT m))
+mkFunc1 :: (MonadIO m, MonadThrow m) => (Object (EvalT r m) -> EvalT r m (Object (EvalT r m))) -> EvalT r m (Object (EvalT r m))
 mkFunc1 f = func \case
   [arg] -> f arg
   _ -> throw EArityMismatch
 
-mkFunc2 :: (MonadIO m, MonadThrow m) => (Object (EvalT m) -> Object (EvalT m) -> EvalT m (Object (EvalT m))) -> EvalT m (Object (EvalT m))
+mkFunc2 :: (MonadIO m, MonadThrow m) => (Object (EvalT r m) -> Object (EvalT r m) -> EvalT r m (Object (EvalT r m))) -> EvalT r m (Object (EvalT r m))
 mkFunc2 f = func \case
   [arg, arg'] -> f arg arg'
   _ -> throw EArityMismatch
 
-mkNumFoldFunc :: (MonadIO m, MonadThrow m) => (Integer -> Integer -> Integer) -> Integer -> EvalT m (Object (EvalT m))
+mkNumFoldFunc :: (MonadIO m, MonadThrow m) => (Integer -> Integer -> Integer) -> Integer -> EvalT r m (Object (EvalT r m))
 mkNumFoldFunc f z = func \args -> do
   ns <- traverse expectNum args
   num $! foldl' f z ns
 
-mkNumBinPred :: (MonadIO m, MonadThrow m) => (Integer -> Integer -> Bool) -> EvalT m (Object (EvalT m))
+mkNumBinPred :: (MonadIO m, MonadThrow m) => (Integer -> Integer -> Bool) -> EvalT r m (Object (EvalT r m))
 mkNumBinPred pred = mkFunc2 \arg arg' -> do
   n <- expectNum arg
   n' <- expectNum arg'
   pure if pred n n' then true else false
 
-mkFileOpenFunc :: (MonadIO m, MonadThrow m) => IOMode -> EvalT m (Object (EvalT m))
+mkFileOpenFunc :: (MonadIO m, MonadThrow m) => IOMode -> EvalT r m (Object (EvalT r m))
 mkFileOpenFunc mode = mkFunc1 \obj -> do
   path <- expectStr obj
   h <- liftIO $ openFile (T.unpack path) mode `catchIO` (throw . EIO)
   port h
 
-synQuote :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synQuote :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synQuote = syn \case
   [obj] -> pure obj
   _ -> throw ESyntax
 
-synQuasiquote :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synQuasiquote :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synQuasiquote = syn \case
   [obj] -> qq obj
   _ -> throw ESyntax
   where
     qq =
-      listify >=> traverse listify >=> \case
-        NonList (NonList obj) -> pure obj
-        NonList _ -> error "impossible"
-        List [NonList (Sym "unquote"), objs] -> eval =<< unlistify objs
-        List [List [Sym "unquote-splicing", obj1], obj2] -> do
-          obj1' <- expectList =<< eval obj1
-          obj2' <- qq =<< unlistify obj2
-          foldrM cons obj2' obj1'
-        List objs -> list =<< traverse unlistify objs
+      listify >=> \case
+        NonList obj -> pure obj
+        List [Sym "unquote", obj] -> eval obj
+        List [Sym "unquote-splicing", _] -> throw ESyntax
+        List objs -> traverse qqSplicing objs >>= list . concat
         DList objs obj -> do
-          objs' <- traverse unlistify objs
-          obj' <- unlistify obj
-          dlist objs' obj'
+          objs' <- traverse qqSplicing objs
+          obj' <- qq obj
+          dlist (NE.fromList $ concat objs') obj'
 
-synUnquote :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+    qqSplicing =
+      listify >=> \case
+        NonList obj -> pure [obj]
+        List [Sym "unquote", obj] -> pure <$> eval obj
+        List [Sym "unquote-splicing", obj] -> eval obj >>= expectList
+        List objs -> traverse qqSplicing objs >>= fmap pure . list . concat
+        DList objs obj -> do
+          objs' <- traverse qqSplicing objs
+          obj' <- qq obj
+          pure <$> dlist (NE.fromList $ concat objs') obj'
+
+synUnquote :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synUnquote = syn \_ -> throw ESyntax
 
-synUnquoteSplicing :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synUnquoteSplicing :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synUnquoteSplicing = syn \_ -> throw ESyntax
 
-synIf :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synIf :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synIf = syn \case
   [cond, then'] -> do
     eval cond >>= \case
@@ -365,14 +378,14 @@ synIf = syn \case
       _ -> eval then'
   _ -> throw ESyntax
 
-synSet :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synSet :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synSet = syn \case
   [Sym var, expr] -> do
     obj <- eval expr
     undef <$ set var obj
   _ -> throw ESyntax
 
-synDefine :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synDefine :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synDefine = syn \case
   [Sym name, expr] -> do
     obj <- eval expr
@@ -383,7 +396,7 @@ synDefine = syn \case
     undef <$ bind name' cls
   _ -> throw ESyntax
 
-synDefMacro :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synDefMacro :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synDefMacro = syn \es -> do
   (name, s) <- case es of
     [Sym name, expr] -> do
@@ -397,16 +410,16 @@ synDefMacro = syn \es -> do
     _ -> throw ESyntax
   undef <$ bind name s
 
-synLambda :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synLambda :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synLambda = syn \case
   params : body -> mkClosure params body
   _ -> throw ESyntax
 
 mkClosure ::
   (MonadIO m, MonadThrow m) =>
-  Object (EvalT m) ->
-  [Object (EvalT m)] ->
-  EvalT m (Object (EvalT m))
+  Object (EvalT r m) ->
+  [Object (EvalT r m)] ->
+  EvalT r m (Object (EvalT r m))
 mkClosure = \params body -> do
   binder <- listify params >>= mkBinder
   checkBodySyntax body
@@ -436,7 +449,7 @@ mkClosure = \params body -> do
             _ -> pure False
         _ -> pure False
 
-synMatch :: (MonadIO m, MonadThrow m) => EvalT m (Object (EvalT m))
+synMatch :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 synMatch = syn \case
   [] -> throw ESyntax
   expr : arms ->
@@ -450,43 +463,43 @@ synMatch = syn \case
 
 -- utils
 
-expectNum :: MonadThrow m => Object (EvalT m) -> EvalT m Integer
+expectNum :: MonadThrow m => Object (EvalT r m) -> EvalT r m Integer
 expectNum = \case
   Num n -> pure n
   _ -> throw EType
 
-expectStr :: MonadThrow m => Object (EvalT m) -> EvalT m T.Text
+expectStr :: MonadThrow m => Object (EvalT r m) -> EvalT r m T.Text
 expectStr = \case
   Str s -> pure s
   _ -> throw EType
 
-expectSym :: MonadThrow m => Object (EvalT m) -> EvalT m T.Text
+expectSym :: MonadThrow m => Object (EvalT r m) -> EvalT r m T.Text
 expectSym = \case
   Sym s -> pure s
   _ -> throw EType
 
-expectPort :: MonadThrow m => Object (EvalT m) -> EvalT m Handle
+expectPort :: MonadThrow m => Object (EvalT r m) -> EvalT r m Handle
 expectPort = \case
   Port h -> pure h
   _ -> throw EType
 
-expectCons :: MonadThrow m => Object (EvalT m) -> EvalT m (ObjRef (EvalT m), ObjRef (EvalT m))
+expectCons :: MonadThrow m => Object (EvalT r m) -> EvalT r m (ObjRef (EvalT r m), ObjRef (EvalT r m))
 expectCons = \case
   Cons car cdr -> pure (car, cdr)
   _ -> throw EType
 
-expectList :: (MonadThrow m, MonadIO m) => Object (EvalT m) -> EvalT m [Object (EvalT m)]
+expectList :: (MonadThrow m, MonadIO m) => Object (EvalT r m) -> EvalT r m [Object (EvalT r m)]
 expectList =
   listify >=> \case
     List xs -> pure xs
-    _ -> throw ESyntax
+    _ -> throw EType
 
-expectFunc :: MonadThrow m => Object (EvalT m) -> EvalT m ([Object (EvalT m)] -> EvalT m (Object (EvalT m)))
+expectFunc :: MonadThrow m => Object (EvalT r m) -> EvalT r m ([Object (EvalT r m)] -> EvalT r m (Object (EvalT r m)))
 expectFunc = \case
   Func f -> pure f
   _ -> throw EType
 
-expectSyn :: MonadThrow m => Object (EvalT m) -> EvalT m ([Object (EvalT m)] -> EvalT m (Object (EvalT m)))
+expectSyn :: MonadThrow m => Object (EvalT r m) -> EvalT r m ([Object (EvalT r m)] -> EvalT r m (Object (EvalT r m)))
 expectSyn = \case
   Syn f -> pure f
   _ -> throw EType

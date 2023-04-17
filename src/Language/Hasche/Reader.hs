@@ -23,25 +23,25 @@ import Text.Megaparsec.Char hiding (space)
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Megaparsec.Error.Builder
 
-type ReadT m = ParsecT Void T.Text (EvalT m)
+type ReadT r m = ParsecT Void T.Text (EvalT r m)
 
 readObjectList ::
-  (MonadThrow m, MonadIO m) => FilePath -> T.Text -> EvalT m [Object (EvalT m)]
+  (MonadThrow m, MonadIO m) => FilePath -> T.Text -> EvalT r m [Object (EvalT r m)]
 readObjectList path input = do
   res <- runParserT (space *> many pExpr <* eof) path input
   either (throw . ERead) pure res
 
-readObject :: (MonadThrow m, MonadIO m) => T.Text -> EvalT m (Object (EvalT m))
+readObject :: (MonadThrow m, MonadIO m) => T.Text -> EvalT r m (Object (EvalT r m))
 readObject input = do
   res <- runParserT (space *> pExpr <* eof) "" input
   either (throw . ERead) pure res
 
-readNum :: (MonadThrow m, MonadIO m) => T.Text -> EvalT m (Object (EvalT m))
+readNum :: (MonadThrow m, MonadIO m) => T.Text -> EvalT r m (Object (EvalT r m))
 readNum input = do
   res <- runParserT pNum "" input
   either (throw . ERead) pure res
 
-pExpr :: MonadIO m => ReadT m (Object (EvalT m))
+pExpr :: MonadIO m => ReadT r m (Object (EvalT r m))
 pExpr =
   choice
     [ pAtom,
@@ -49,7 +49,7 @@ pExpr =
       pPairs
     ]
 
-pQuoted :: MonadIO m => ReadT m (Object (EvalT m))
+pQuoted :: MonadIO m => ReadT r m (Object (EvalT r m))
 pQuoted = do
   f <-
     choice
@@ -62,7 +62,7 @@ pQuoted = do
   where
     q s o = list . (: [o]) =<< sym s
 
-pPairs :: MonadIO m => ReadT m (Object (EvalT m))
+pPairs :: MonadIO m => ReadT r m (Object (EvalT r m))
 pPairs = between (lexeme lparen) (lexeme rparen) do
   e : es <- some pExpr
   choice
@@ -70,7 +70,7 @@ pPairs = between (lexeme lparen) (lexeme rparen) do
       lift . dlist (e NE.:| es) =<< (symbol "." *> pExpr)
     ]
 
-pAtom :: MonadIO m => ReadT m (Object (EvalT m))
+pAtom :: MonadIO m => ReadT r m (Object (EvalT r m))
 pAtom =
   choice
     [ empty <$ symbol "()",
@@ -83,10 +83,10 @@ pAtom =
       lexeme pIdent
     ]
 
-pNum :: MonadIO m => ReadT m (Object (EvalT m))
+pNum :: MonadIO m => ReadT r m (Object (EvalT r m))
 pNum = lift . num =<< L.signed (pure ()) L.decimal
 
-pStr :: MonadIO m => ReadT m (Object (EvalT m))
+pStr :: MonadIO m => ReadT r m (Object (EvalT r m))
 pStr = lift . str . T.concat =<< between (char '"') (char '"') (many str')
   where
     str' =
@@ -103,7 +103,7 @@ pStr = lift . str . T.concat =<< between (char '"') (char '"') (many str')
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
-pIdent :: MonadIO m => ReadT m (Object (EvalT m))
+pIdent :: MonadIO m => ReadT r m (Object (EvalT r m))
 pIdent = try do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->
@@ -113,19 +113,19 @@ pIdent = try do
     then parseError (err o (utoks x))
     else lift $ sym x
 
-space :: ReadT m ()
+space :: ReadT r m ()
 space =
   L.space
     space1
     (L.skipLineComment ";")
     (L.skipBlockCommentNested "#|" "|#")
 
-lexeme :: ReadT m a -> ReadT m a
+lexeme :: ReadT r m a -> ReadT r m a
 lexeme = L.lexeme space
 
-symbol :: T.Text -> ReadT m T.Text
+symbol :: T.Text -> ReadT r m T.Text
 symbol = L.symbol space
 
-lparen, rparen :: ReadT m ()
+lparen, rparen :: ReadT r m ()
 lparen = void $ satisfy (\c -> c == '(' || c == '[')
 rparen = void $ satisfy (\c -> c == ')' || c == ']')
