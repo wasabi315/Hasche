@@ -1,46 +1,47 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 module Language.Hasche.Reader
   ( readObject,
     readObjectList,
     readNum,
-    ReadError,
   )
 where
 
-import Control.Exception.Safe (Exception, throw)
+import Control.Exception.Safe hiding (try)
 import Control.Monad
 import Control.Monad.Trans
 import Data.Char
 import Data.List.NonEmpty qualified as NE
-import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Void
-import Language.Hasche.Types
+import Language.Hasche.Error
+import Language.Hasche.Eval
+import Language.Hasche.Object
 import Text.Megaparsec hiding (ParseError, empty)
 import Text.Megaparsec.Char hiding (space)
 import Text.Megaparsec.Char.Lexer qualified as L
 import Text.Megaparsec.Error.Builder
 
-type Reader = ParsecT Void Text Eval
+type ReadT m = ParsecT Void T.Text (EvalT m)
 
-newtype ReadError = ReadError (ParseErrorBundle Text Void)
-  deriving newtype (Show, Exception)
-
-readObjectList :: FilePath -> Text -> Eval [Object]
+readObjectList ::
+  (MonadThrow m, MonadIO m) => FilePath -> T.Text -> EvalT m [Object (EvalT m)]
 readObjectList path input = do
   res <- runParserT (space *> many pExpr <* eof) path input
-  either (throw . Error . ReadError) pure res
+  either (throw . ERead) pure res
 
-readObject :: Text -> Eval Object
+readObject :: (MonadThrow m, MonadIO m) => T.Text -> EvalT m (Object (EvalT m))
 readObject input = do
   res <- runParserT (space *> pExpr <* eof) "" input
-  either (throw . Error . ReadError) pure res
+  either (throw . ERead) pure res
 
-readNum :: Text -> Eval Object
+readNum :: (MonadThrow m, MonadIO m) => T.Text -> EvalT m (Object (EvalT m))
 readNum input = do
   res <- runParserT pNum "" input
-  either (throw . Error . ReadError) pure res
+  either (throw . ERead) pure res
 
-pExpr :: Reader Object
+pExpr :: MonadIO m => ReadT m (Object (EvalT m))
 pExpr =
   choice
     [ pAtom,
@@ -48,7 +49,7 @@ pExpr =
       pPairs
     ]
 
-pQuoted :: Reader Object
+pQuoted :: MonadIO m => ReadT m (Object (EvalT m))
 pQuoted = do
   f <-
     choice
@@ -59,17 +60,17 @@ pQuoted = do
       ]
   lift . f =<< pExpr
   where
-    q s o = list . (NE.:| [o]) =<< sym s
+    q s o = list . (: [o]) =<< sym s
 
-pPairs :: Reader Object
+pPairs :: MonadIO m => ReadT m (Object (EvalT m))
 pPairs = between (lexeme lparen) (lexeme rparen) do
   e : es <- some pExpr
   choice
-    [ lift (list (e NE.:| es)) <* lookAhead rparen,
+    [ lift (list (e : es)) <* lookAhead rparen,
       lift . dlist (e NE.:| es) =<< (symbol "." *> pExpr)
     ]
 
-pAtom :: Reader Object
+pAtom :: MonadIO m => ReadT m (Object (EvalT m))
 pAtom =
   choice
     [ empty <$ symbol "()",
@@ -82,10 +83,10 @@ pAtom =
       lexeme pIdent
     ]
 
-pNum :: Reader Object
+pNum :: MonadIO m => ReadT m (Object (EvalT m))
 pNum = lift . num =<< L.signed (pure ()) L.decimal
 
-pStr :: Reader Object
+pStr :: MonadIO m => ReadT m (Object (EvalT m))
 pStr = lift . str . T.concat =<< between (char '"') (char '"') (many str')
   where
     str' =
@@ -102,7 +103,7 @@ pStr = lift . str . T.concat =<< between (char '"') (char '"') (many str')
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
-pIdent :: Reader Object
+pIdent :: MonadIO m => ReadT m (Object (EvalT m))
 pIdent = try do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->
@@ -112,19 +113,19 @@ pIdent = try do
     then parseError (err o (utoks x))
     else lift $ sym x
 
-space :: Reader ()
+space :: ReadT m ()
 space =
   L.space
     space1
     (L.skipLineComment ";")
     (L.skipBlockCommentNested "#|" "|#")
 
-lexeme :: Reader a -> Reader a
+lexeme :: ReadT m a -> ReadT m a
 lexeme = L.lexeme space
 
-symbol :: Text -> Reader Text
+symbol :: T.Text -> ReadT m T.Text
 symbol = L.symbol space
 
-lparen, rparen :: Reader ()
+lparen, rparen :: ReadT m ()
 lparen = void $ satisfy (\c -> c == '(' || c == '[')
 rparen = void $ satisfy (\c -> c == ')' || c == ']')

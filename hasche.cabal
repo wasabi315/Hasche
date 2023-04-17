@@ -62,29 +62,19 @@ common defaults
         DeriveGeneric
         DerivingStrategies
         BlockArguments
+        DefaultSignatures
 
 library
     import: defaults
     exposed-modules:  Language.Hasche
-                    , Language.Hasche.Types
-                    , Language.Hasche.Reader
-                    , Language.Hasche.Format
-                    , Language.Hasche.Evaluate
-                    , Language.Hasche.Syntax.Reader
-                    , Language.Hasche.Syntax.SExpr
+                    , Language.Hasche.Object
+                    , Language.Hasche.Error
                     , Language.Hasche.Eval
-                    , Language.Hasche.Eval.Env
-                    , Language.Hasche.Eval.Error
-                    , Language.Hasche.Eval.Eval
-                    , Language.Hasche.Eval.Format
-                    , Language.Hasche.Eval.Object
-                    , Language.Hasche.Eval.Pattern
-                    , Language.Hasche.Builtins
-                    , Language.Hasche.Builtins.Primitives
-                    , Language.Hasche.Builtins.SpecialForms
+                    , Language.Hasche.Pretty
+                    , Language.Hasche.Pattern
+                    , Language.Hasche.Reader
+                    , Language.Hasche.Primitives
     other-modules:    Data.Foldable.Extra
-                    , Data.Box
-                    , Data.Cell
     build-depends:    base ^>=4.16.4.0
                     , text
                     , megaparsec
