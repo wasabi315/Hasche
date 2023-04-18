@@ -1,6 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE QuantifiedConstraints #-}
 
 module Language.Hasche.Object
   ( MonadIDSupply (..),
@@ -54,7 +53,7 @@ class Monad m => MonadIDSupply m where
   freshID :: m (ObjID m)
 
 -- mutable reference
-class (Monad m, forall a r. (r ~ Ref m a) => Eq r) => MonadRef m where
+class Monad m => MonadRef m where
   type Ref m :: Type -> Type
   newRef :: a -> m (Ref m a)
   deref :: Ref m a -> m a
