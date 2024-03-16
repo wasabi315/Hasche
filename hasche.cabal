@@ -6,7 +6,7 @@ homepage:           https://github.com/wasabi315/hasche
 license:            NONE
 author:             wasabi315
 maintainer:         wasabi.nvim.st@gmail.com
-copyright:          (c) 2021 wasabi315
+copyright:          (c) 2024 wasabi315
 
 extra-source-files:
     CHANGELOG.md
@@ -75,7 +75,7 @@ library
                     , Language.Hasche.Reader
                     , Language.Hasche.Primitives
     other-modules:    Data.Foldable.Extra
-    build-depends:    base ^>=4.16.4.0
+    build-depends:    base >=4.16
                     , text
                     , megaparsec
                     , mtl
@@ -91,7 +91,7 @@ executable hasche
     main-is:          Main.hs
     other-modules:    Commands.Exec
                     , Commands.REPL
-    build-depends:    base ^>=4.16.4.0
+    build-depends:    base >=4.16
                     , text
                     , optparse-applicative
                     , haskeline
@@ -105,4 +105,4 @@ test-suite hasche-test
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          MyLibTest.hs
-    build-depends:    base ^>=4.16.4.0
+    build-depends:    base >=4.16
