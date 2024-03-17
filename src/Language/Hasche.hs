@@ -46,7 +46,7 @@ exec fp src = do
     prepareStdlib
     void $ runMany fp src
 
-mkInteractive :: (MonadIO m, MonadCatch m) => m (T.Text -> m (Either Error T.Text))
+mkInteractive :: forall m. (MonadIO m, MonadCatch m) => m (T.Text -> m (Either Error T.Text))
 mkInteractive = do
   env <- emptyEnv
   initalized <- liftIO $ newIORef False
@@ -57,4 +57,6 @@ mkInteractive = do
       prepareStdlib
       liftIO $ writeIORef initalized True
     obj <- run input
-    display obj
+    if objID obj /= undefID @(EvalT _ m)
+      then display obj
+      else pure ""

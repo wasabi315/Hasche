@@ -47,20 +47,20 @@ import Data.Text qualified as T
 import System.IO
 
 -- pseudo pointer equality
-class Monad m => MonadIDSupply m where
+class (Monad m, Eq (ObjID m)) => MonadIDSupply m where
   type ObjID m :: Type
   undefID, emptyID, trueID, falseID :: ObjID m -- Reserved IDs
   freshID :: m (ObjID m)
 
 -- mutable reference
-class Monad m => MonadRef m where
+class (Monad m) => MonadRef m where
   type Ref m :: Type -> Type
   newRef :: a -> m (Ref m a)
   deref :: Ref m a -> m a
   setRef :: Ref m a -> a -> m ()
 
 -- symbols
-class Monad m => MonadSym m where
+class (Monad m) => MonadSym m where
   intern :: Object m -> m (Object m)
   gensym :: m (Object m)
 
@@ -83,25 +83,25 @@ data ObjKind m
 
 -- object constructors
 
-newObject :: MonadIDSupply m => ObjKind m -> m (Object m)
+newObject :: (MonadIDSupply m) => ObjKind m -> m (Object m)
 newObject kind = flip Object kind <$> freshID
 
-undef, empty, true, false :: forall m. MonadIDSupply m => Object m
+undef, empty, true, false :: forall m. (MonadIDSupply m) => Object m
 undef = Object (undefID @m) Undef_
 empty = Object (emptyID @m) Empty_
 true = Object (trueID @m) (Bool_ True)
 false = Object (falseID @m) (Bool_ False)
 
-num :: MonadIDSupply m => Integer -> m (Object m)
+num :: (MonadIDSupply m) => Integer -> m (Object m)
 num = newObject . Num_
 
-str :: MonadIDSupply m => T.Text -> m (Object m)
+str :: (MonadIDSupply m) => T.Text -> m (Object m)
 str = newObject . Str_
 
 sym :: (MonadIDSupply m, MonadSym m) => T.Text -> m (Object m)
 sym s = newObject (Sym_ s) >>= intern
 
-port :: MonadIDSupply m => Handle -> m (Object m)
+port :: (MonadIDSupply m) => Handle -> m (Object m)
 port = newObject . Port_
 
 cons :: (MonadIDSupply m, MonadRef m) => Object m -> Object m -> m (Object m)
@@ -116,13 +116,13 @@ list = foldrM cons empty
 dlist :: (MonadIDSupply m, MonadRef m) => NE.NonEmpty (Object m) -> Object m -> m (Object m)
 dlist = flip $ foldrM cons
 
-syn :: MonadIDSupply m => ([Object m] -> m (Object m)) -> m (Object m)
+syn :: (MonadIDSupply m) => ([Object m] -> m (Object m)) -> m (Object m)
 syn = newObject . Syn_
 
-func :: MonadIDSupply m => ([Object m] -> m (Object m)) -> m (Object m)
+func :: (MonadIDSupply m) => ([Object m] -> m (Object m)) -> m (Object m)
 func = newObject . Func_
 
-cont :: MonadIDSupply m => (Object m -> m (Object m)) -> m (Object m)
+cont :: (MonadIDSupply m) => (Object m -> m (Object m)) -> m (Object m)
 cont = newObject . Cont_
 
 -- object destrcutors
@@ -171,7 +171,7 @@ data ListifyResult a
   | DList (NE.NonEmpty a) a
   deriving (Functor, Foldable, Traversable)
 
-listify :: MonadRef m => Object m -> m (ListifyResult (Object m))
+listify :: (MonadRef m) => Object m -> m (ListifyResult (Object m))
 listify Empty = pure $ List []
 listify (Cons ref1 ref2) = do
   obj <- deref ref1
