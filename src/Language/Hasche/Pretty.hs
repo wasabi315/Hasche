@@ -1,6 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE StrictData #-}
-
 module Language.Hasche.Pretty
   ( write,
     display,
@@ -24,10 +21,10 @@ import Language.Hasche.Object
 
 -- Prettyprinter for Object
 
-write :: MonadIO m => Object (EvalT r m) -> EvalT r m T.Text
+write :: (MonadIO m) => Object (EvalT r m) -> EvalT r m T.Text
 write = pretty writeOption
 
-display :: MonadIO m => Object (EvalT r m) -> EvalT r m T.Text
+display :: (MonadIO m) => Object (EvalT r m) -> EvalT r m T.Text
 display = pretty displayOption
 
 data PrettyOption = PrettyOption
@@ -45,7 +42,7 @@ data PrettyOption = PrettyOption
     prettyCons :: (Decycled -> TB.Builder) -> Maybe Label -> Decycled -> Decycled -> TB.Builder
   }
 
-pretty :: MonadIO m => PrettyOption -> Object (EvalT r m) -> EvalT r m T.Text
+pretty :: (MonadIO m) => PrettyOption -> Object (EvalT r m) -> EvalT r m T.Text
 pretty PrettyOption {..} =
   fmap (TL.toStrict . TB.toLazyText . format') . decycle
   where
@@ -127,7 +124,7 @@ data DecycleStatus
   | CycleDetected Label
   | Done Decycled
 
-decycle :: MonadIO m => Object (EvalT r m) -> EvalT r m Decycled
+decycle :: (MonadIO m) => Object (EvalT r m) -> EvalT r m Decycled
 decycle obj = do
   table :: HT.BasicHashTable (ObjID (EvalT r m)) DecycleStatus <- liftIO HT.new
   nextLabel <- liftIO $ newIORef 0

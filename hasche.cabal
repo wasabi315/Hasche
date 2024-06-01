@@ -13,56 +13,19 @@ extra-source-files:
     lib/*.scm
 
 common defaults
-    default-language: Haskell2010
+    default-language: GHC2021
     ghc-options:      -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wredundant-constraints -O1
     default-extensions:
-        EmptyCase
-        PostfixOperators
-        TupleSections
-        ImportQualifiedPost
-        NamedFieldPuns
         RecordWildCards
-        BangPatterns
         LambdaCase
-        MultiWayIf
-        ViewPatterns
-        BinaryLiterals
-        HexFloatLiterals
-        NumericUnderscores
         OverloadedStrings
         GADTs
-        RankNTypes
-        TypeApplications
-        PolyKinds
-        StandaloneKindSignatures
-        ExistentialQuantification
-        TypeOperators
-        ConstraintKinds
         TypeFamilies
-        ExplicitForAll
         PartialTypeSignatures
-        KindSignatures
-        NamedWildCards
-        ScopedTypeVariables
-        FlexibleContexts
-        FlexibleInstances
         FunctionalDependencies
-        MultiParamTypeClasses
-        ConstrainedClassMethods
-        InstanceSigs
-        TypeSynonymInstances
-        DeriveDataTypeable
-        DeriveFoldable
-        DeriveFunctor
-        DeriveTraversable
-        StandaloneDeriving
-        EmptyDataDeriving
-        DeriveLift
-        GeneralisedNewtypeDeriving
-        DeriveGeneric
         DerivingStrategies
         BlockArguments
-        DefaultSignatures
+        Strict
 
 library
     import: defaults

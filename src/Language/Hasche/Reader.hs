@@ -1,6 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
-
 module Language.Hasche.Reader
   ( readObject,
     readObjectList,
@@ -42,7 +39,7 @@ readNum input = do
   res <- runParserT pNum "" input
   either (throw . ERead) pure res
 
-pExpr :: MonadIO m => ReadT r m (Object (EvalT r m))
+pExpr :: (MonadIO m) => ReadT r m (Object (EvalT r m))
 pExpr =
   choice
     [ pAtom,
@@ -50,7 +47,7 @@ pExpr =
       pPairs
     ]
 
-pQuoted :: MonadIO m => ReadT r m (Object (EvalT r m))
+pQuoted :: (MonadIO m) => ReadT r m (Object (EvalT r m))
 pQuoted = do
   f <-
     choice
@@ -63,7 +60,7 @@ pQuoted = do
   where
     q s o = list . (: [o]) =<< sym s
 
-pPairs :: MonadIO m => ReadT r m (Object (EvalT r m))
+pPairs :: (MonadIO m) => ReadT r m (Object (EvalT r m))
 pPairs = between (lexeme lparen) (lexeme rparen) do
   e : es <- some pExpr
   choice
@@ -71,7 +68,7 @@ pPairs = between (lexeme lparen) (lexeme rparen) do
       lift . dlist (e NE.:| es) =<< (symbol "." *> pExpr)
     ]
 
-pAtom :: MonadIO m => ReadT r m (Object (EvalT r m))
+pAtom :: (MonadIO m) => ReadT r m (Object (EvalT r m))
 pAtom =
   choice
     [ empty <$ symbol "()",
@@ -84,10 +81,10 @@ pAtom =
       lexeme pIdent
     ]
 
-pNum :: MonadIO m => ReadT r m (Object (EvalT r m))
+pNum :: (MonadIO m) => ReadT r m (Object (EvalT r m))
 pNum = lift . num =<< L.signed (pure ()) L.decimal
 
-pStr :: MonadIO m => ReadT r m (Object (EvalT r m))
+pStr :: (MonadIO m) => ReadT r m (Object (EvalT r m))
 pStr = lift . str . T.concat =<< between (char '"') (char '"') (many str')
   where
     str' =
@@ -104,7 +101,7 @@ pStr = lift . str . T.concat =<< between (char '"') (char '"') (many str')
           takeWhile1P Nothing \c -> c /= '\\' && c /= '"'
         ]
 
-pIdent :: MonadIO m => ReadT r m (Object (EvalT r m))
+pIdent :: (MonadIO m) => ReadT r m (Object (EvalT r m))
 pIdent = try do
   o <- getOffset
   x <- takeWhile1P Nothing \c ->

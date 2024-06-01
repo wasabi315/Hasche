@@ -1,5 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
-
 module Language.Hasche.Eval
   ( EvalT,
     runEvalT,
@@ -57,7 +55,7 @@ runEvalT env (EvalT m) = do
     & fmap Right
     & flip catch (pure . Left)
 
-instance MonadIO m => MonadIDSupply (EvalT r m) where
+instance (MonadIO m) => MonadIDSupply (EvalT r m) where
   type ObjID (EvalT r m) = Unique
   freshID = liftIO newUnique
   undefID = unsafePerformIO newUnique
@@ -69,13 +67,13 @@ instance MonadIO m => MonadIDSupply (EvalT r m) where
   {-# NOINLINE trueID #-}
   {-# NOINLINE falseID #-}
 
-instance MonadIO m => MonadRef (EvalT r m) where
+instance (MonadIO m) => MonadRef (EvalT r m) where
   type Ref (EvalT r m) = IORef
   newRef x = liftIO $ newIORef x
   deref r = liftIO $ readIORef r
   setRef r x = liftIO $ writeIORef r x
 
-instance MonadIO m => MonadSym (EvalT r m) where
+instance (MonadIO m) => MonadSym (EvalT r m) where
   intern obj@(Sym s) = do
     table <- asks symbols
     liftIO $ HT.mutate table s \entry ->
@@ -93,14 +91,14 @@ data Env m = Env
     symbols :: HT.BasicHashTable T.Text (Object m)
   }
 
-emptyEnv :: MonadIO m => m (Env n)
+emptyEnv :: (MonadIO m) => m (Env n)
 emptyEnv = liftIO $ liftA2 Env (NE.singleton <$> HT.new) HT.new
 
 withToplevelEnv :: EvalT r m a -> EvalT r m a
 withToplevelEnv m = do
   flip local m \env -> env {binds = NE.singleton . NE.last $ binds env}
 
-withNewScope :: MonadIO m => EvalT r m a -> EvalT r m a
+withNewScope :: (MonadIO m) => EvalT r m a -> EvalT r m a
 withNewScope m = do
   b <- liftIO HT.new
   flip local m \env -> env {binds = NE.cons b (binds env)}
@@ -117,14 +115,14 @@ lookup = lookup' >=> deref
 set :: (MonadIO m, MonadThrow m) => T.Text -> Object (EvalT r m) -> EvalT r m ()
 set k v = lookup' k >>= flip setRef v
 
-bind :: MonadIO m => T.Text -> Object (EvalT r m) -> EvalT r m ()
+bind :: (MonadIO m) => T.Text -> Object (EvalT r m) -> EvalT r m ()
 bind k v = do
   b <- asks $ NE.head . binds
   liftIO . HT.insert b k =<< newRef v
 
 -- like func but the body is evaluated under the current environment
 closure ::
-  MonadIO m =>
+  (MonadIO m) =>
   ([Object (EvalT r m)] -> EvalT r m (Object (EvalT r m))) ->
   EvalT r m (Object (EvalT r m))
 closure f = do
