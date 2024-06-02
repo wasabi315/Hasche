@@ -74,15 +74,18 @@ instance (MonadIO m) => MonadRef (EvalT r m) where
   setRef r x = liftIO $ writeIORef r x
 
 instance (MonadIO m) => MonadSym (EvalT r m) where
-  intern obj@(Sym s) = do
+  intern alloc s = do
     table <- asks symbols
-    liftIO $ HT.mutate table s \entry ->
-      let obj' = fromMaybe obj entry in (Just obj', obj')
-  intern _ = error "bug"
+    liftIO (HT.lookup table s) >>= \case
+      Just obj -> pure obj
+      Nothing -> do
+        obj <- alloc s
+        liftIO $ HT.insert table s obj
+        pure obj
 
-  gensym = do
+  gensym alloc = do
     uniq <- hashUnique <$> liftIO newUnique
-    sym $ "#G" <> T.pack (show uniq)
+    alloc $ "#G" <> T.pack (show uniq)
 
 -- environment
 

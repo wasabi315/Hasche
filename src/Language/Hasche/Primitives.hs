@@ -225,7 +225,7 @@ funcSymStr :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcSymStr = mkFunc1 $ expectSym >=> str
 
 funcGensym :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
-funcGensym = mkFunc0 gensym
+funcGensym = mkFunc0 freshSym
 
 funcCons :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcCons = mkFunc2 cons
@@ -463,27 +463,27 @@ synMatch = syn \case
 
 -- utils
 
-expectNum :: MonadThrow m => Object (EvalT r m) -> EvalT r m Integer
+expectNum :: (MonadThrow m) => Object (EvalT r m) -> EvalT r m Integer
 expectNum = \case
   Num n -> pure n
   _ -> throw EType
 
-expectStr :: MonadThrow m => Object (EvalT r m) -> EvalT r m T.Text
+expectStr :: (MonadThrow m) => Object (EvalT r m) -> EvalT r m T.Text
 expectStr = \case
   Str s -> pure s
   _ -> throw EType
 
-expectSym :: MonadThrow m => Object (EvalT r m) -> EvalT r m T.Text
+expectSym :: (MonadThrow m) => Object (EvalT r m) -> EvalT r m T.Text
 expectSym = \case
   Sym s -> pure s
   _ -> throw EType
 
-expectPort :: MonadThrow m => Object (EvalT r m) -> EvalT r m Handle
+expectPort :: (MonadThrow m) => Object (EvalT r m) -> EvalT r m Handle
 expectPort = \case
   Port h -> pure h
   _ -> throw EType
 
-expectCons :: MonadThrow m => Object (EvalT r m) -> EvalT r m (ObjRef (EvalT r m), ObjRef (EvalT r m))
+expectCons :: (MonadThrow m) => Object (EvalT r m) -> EvalT r m (ObjRef (EvalT r m), ObjRef (EvalT r m))
 expectCons = \case
   Cons car cdr -> pure (car, cdr)
   _ -> throw EType
@@ -494,12 +494,12 @@ expectList =
     List xs -> pure xs
     _ -> throw EType
 
-expectFunc :: MonadThrow m => Object (EvalT r m) -> EvalT r m ([Object (EvalT r m)] -> EvalT r m (Object (EvalT r m)))
+expectFunc :: (MonadThrow m) => Object (EvalT r m) -> EvalT r m ([Object (EvalT r m)] -> EvalT r m (Object (EvalT r m)))
 expectFunc = \case
   Func f -> pure f
   _ -> throw EType
 
-expectSyn :: MonadThrow m => Object (EvalT r m) -> EvalT r m ([Object (EvalT r m)] -> EvalT r m (Object (EvalT r m)))
+expectSyn :: (MonadThrow m) => Object (EvalT r m) -> EvalT r m ([Object (EvalT r m)] -> EvalT r m (Object (EvalT r m)))
 expectSyn = \case
   Syn f -> pure f
   _ -> throw EType

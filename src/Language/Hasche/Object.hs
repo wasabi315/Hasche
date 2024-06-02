@@ -15,6 +15,7 @@ module Language.Hasche.Object
     num,
     str,
     sym,
+    freshSym,
     port,
     cons,
     list,
@@ -61,8 +62,8 @@ class (Monad m) => MonadRef m where
 
 -- symbols
 class (Monad m) => MonadSym m where
-  intern :: Object m -> m (Object m)
-  gensym :: m (Object m)
+  intern :: (T.Text -> m (Object m)) -> T.Text -> m (Object m)
+  gensym :: (T.Text -> m (Object m)) -> m (Object m)
 
 data Object m = Object (ObjID m) (ObjKind m)
 
@@ -93,16 +94,19 @@ true = Object (trueID @m) (Bool_ True)
 false = Object (falseID @m) (Bool_ False)
 
 num :: (MonadIDSupply m) => Integer -> m (Object m)
-num = newObject . Num_
+num n = newObject (Num_ n)
 
 str :: (MonadIDSupply m) => T.Text -> m (Object m)
-str = newObject . Str_
+str s = newObject (Str_ s)
 
 sym :: (MonadIDSupply m, MonadSym m) => T.Text -> m (Object m)
-sym s = newObject (Sym_ s) >>= intern
+sym s = intern (newObject . Sym_) s
+
+freshSym :: (MonadIDSupply m, MonadSym m) => m (Object m)
+freshSym = gensym (newObject . Sym_)
 
 port :: (MonadIDSupply m) => Handle -> m (Object m)
-port = newObject . Port_
+port p = newObject (Port_ p)
 
 cons :: (MonadIDSupply m, MonadRef m) => Object m -> Object m -> m (Object m)
 cons car cdr = do
@@ -114,16 +118,16 @@ list :: (MonadIDSupply m, MonadRef m) => [Object m] -> m (Object m)
 list = foldrM cons empty
 
 dlist :: (MonadIDSupply m, MonadRef m) => NE.NonEmpty (Object m) -> Object m -> m (Object m)
-dlist = flip $ foldrM cons
+dlist objs obj = foldrM cons obj objs
 
 syn :: (MonadIDSupply m) => ([Object m] -> m (Object m)) -> m (Object m)
-syn = newObject . Syn_
+syn f = newObject (Syn_ f)
 
 func :: (MonadIDSupply m) => ([Object m] -> m (Object m)) -> m (Object m)
-func = newObject . Func_
+func f = newObject (Func_ f)
 
 cont :: (MonadIDSupply m) => (Object m -> m (Object m)) -> m (Object m)
-cont = newObject . Cont_
+cont k = newObject (Cont_ k)
 
 -- object destrcutors
 
