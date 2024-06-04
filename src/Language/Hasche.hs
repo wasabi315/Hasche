@@ -39,24 +39,29 @@ exec ::
   FilePath ->
   T.Text ->
   m (Either Error ())
-exec fp src = do
-  env <- emptyEnv
-  runEvalT env do
-    preparePrimitives
-    prepareStdlib
-    void $ runMany fp src
+exec fp src =
+  do
+    env <- emptyEnv
+    runEvalT env do
+      preparePrimitives
+      prepareStdlib
+      _ <- runMany fp src
+      pure $ Right ()
+    `catch` \e -> pure $ Left e
 
 mkInteractive :: forall m. (MonadIO m, MonadCatch m) => m (T.Text -> m (Either Error T.Text))
 mkInteractive = do
   env <- emptyEnv
   initalized <- liftIO $ newIORef False
-  pure \input -> runEvalT env do
-    ini <- liftIO $ readIORef initalized
-    unless ini do
-      preparePrimitives
-      prepareStdlib
-      liftIO $ writeIORef initalized True
-    obj <- run input
-    if objID obj /= undefID @(EvalT _ m)
-      then display obj
-      else pure ""
+  pure \input ->
+    runEvalT env do
+      ini <- liftIO $ readIORef initalized
+      unless ini do
+        preparePrimitives
+        prepareStdlib
+        liftIO $ writeIORef initalized True
+      obj <- run input
+      if objID obj /= undefID @(EvalT _ m)
+        then Right <$> display obj
+        else pure (Right "")
+      `catch` \e -> pure $ Left e

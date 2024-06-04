@@ -115,7 +115,7 @@ data Decycled
   | DCont
   | DRef Label
   | DCons (Maybe Label) Decycled Decycled
-  deriving (Show)
+  deriving stock (Show)
 
 type Label = Int
 

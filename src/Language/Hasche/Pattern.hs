@@ -47,7 +47,7 @@ data Pattern
   | PPred T.Text Pattern
   | PCons Pattern Pattern
   | PRest Pattern
-  deriving (Show)
+  deriving stock (Show)
 
 parsePattern ::
   (MonadIO m, MonadThrow m) => Object (EvalT r m) -> EvalT r m Pattern
@@ -70,9 +70,10 @@ parsePattern =
       pure $ PCons pat pat'
     DList (obj NE.:| objs) obj' -> do
       pat <- parsePattern obj
-      pats <- parsePattern =<< case objs of
-        [] -> pure obj'
-        o : os -> dlist (o NE.:| os) obj'
+      pats <-
+        parsePattern =<< case objs of
+          [] -> pure obj'
+          o : os -> dlist (o NE.:| os) obj'
       pure $ PCons pat pats
 
 parseSExprPattern ::
@@ -105,9 +106,10 @@ parseQuasiPattern =
       pure $ PCons pat pat'
     DList (obj NE.:| objs) obj' -> do
       pat <- parseQuasiPattern obj
-      pats <- parseQuasiPattern =<< case objs of
-        [] -> pure obj'
-        o : os -> dlist (o NE.:| os) obj'
+      pats <-
+        parseQuasiPattern =<< case objs of
+          [] -> pure obj'
+          o : os -> dlist (o NE.:| os) obj'
       pure $ PCons pat pats
 
 matcher ::
@@ -145,7 +147,7 @@ matcher (PRest pat) obj = do
 matcher _ _ = pure Nothing
 
 mergeBinds ::
-  MonadIO m =>
+  (MonadIO m) =>
   [M.Map T.Text (Object (EvalT r m))] ->
   EvalT r m (M.Map T.Text (Object (EvalT r m)))
 mergeBinds = foldrM mergeBinds' M.empty

@@ -47,13 +47,11 @@ newtype EvalT r m a = EvalT (ReaderT (Env (EvalT r m)) (ContT r m) a)
       MonadThrow
     )
 
-runEvalT :: (MonadIO m, MonadCatch m) => Env (EvalT a m) -> EvalT a m a -> m (Either Error a)
+runEvalT :: (MonadIO m) => Env (EvalT a m) -> EvalT a m a -> m a
 runEvalT env (EvalT m) = do
   m
     & flip runReaderT env
     & flip runContT pure
-    & fmap Right
-    & flip catch (pure . Left)
 
 instance (MonadIO m) => MonadIDSupply (EvalT r m) where
   type ObjID (EvalT r m) = Unique
