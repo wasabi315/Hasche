@@ -77,6 +77,7 @@ preparePrimitives = do
   bind "set-cdr!" =<< funcSetCdr
 
   bind "call/cc" =<< funcCallCC
+  bind "dynamic-wind" =<< funcDynamicWind
 
   bind "open-input-file" =<< funcOpenInputFile
   bind "open-output-file" =<< funcOpenOutputFile
@@ -247,7 +248,16 @@ funcSetCdr = mkFunc2 \x y -> do
   undef <$ setRef cdr y
 
 funcCallCC :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
-funcCallCC = mkFunc1 \arg -> callCC $ cont >=> apply arg . pure
+funcCallCC = mkFunc1 \arg -> callCC \k -> do
+  curr <- getCurrDWAction
+  k' <- cont curr k
+  apply arg (pure k')
+
+funcDynamicWind :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
+funcDynamicWind = mkFunc3 \arg arg' arg'' -> do
+  let pre = () <$ apply arg []
+      post = () <$ apply arg'' []
+  withDWAction pre post (apply arg' [])
 
 funcOpenInputFile :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m))
 funcOpenInputFile = mkFileOpenFunc ReadMode
@@ -296,19 +306,36 @@ funcError = func $ traverse display >=> throw . EUser . T.concat
 
 -- smart constructors
 
-mkFunc0 :: (MonadIO m, MonadThrow m) => EvalT r m (Object (EvalT r m)) -> EvalT r m (Object (EvalT r m))
+mkFunc0 ::
+  (MonadIO m, MonadThrow m) =>
+  EvalT r m (Object (EvalT r m)) ->
+  EvalT r m (Object (EvalT r m))
 mkFunc0 x = func \case
   [] -> x
   _ -> throw EArityMismatch
 
-mkFunc1 :: (MonadIO m, MonadThrow m) => (Object (EvalT r m) -> EvalT r m (Object (EvalT r m))) -> EvalT r m (Object (EvalT r m))
+mkFunc1 ::
+  (MonadIO m, MonadThrow m) =>
+  (Object (EvalT r m) -> EvalT r m (Object (EvalT r m))) ->
+  EvalT r m (Object (EvalT r m))
 mkFunc1 f = func \case
   [arg] -> f arg
   _ -> throw EArityMismatch
 
-mkFunc2 :: (MonadIO m, MonadThrow m) => (Object (EvalT r m) -> Object (EvalT r m) -> EvalT r m (Object (EvalT r m))) -> EvalT r m (Object (EvalT r m))
+mkFunc2 ::
+  (MonadIO m, MonadThrow m) =>
+  (Object (EvalT r m) -> Object (EvalT r m) -> EvalT r m (Object (EvalT r m))) ->
+  EvalT r m (Object (EvalT r m))
 mkFunc2 f = func \case
   [arg, arg'] -> f arg arg'
+  _ -> throw EArityMismatch
+
+mkFunc3 ::
+  (MonadIO m, MonadThrow m) =>
+  (Object (EvalT r m) -> Object (EvalT r m) -> Object (EvalT r m) -> EvalT r m (Object (EvalT r m))) ->
+  EvalT r m (Object (EvalT r m))
+mkFunc3 f = func \case
+  [arg, arg', arg''] -> f arg arg' arg''
   _ -> throw EArityMismatch
 
 mkNumFoldFunc :: (MonadIO m, MonadThrow m) => (Integer -> Integer -> Integer) -> Integer -> EvalT r m (Object (EvalT r m))

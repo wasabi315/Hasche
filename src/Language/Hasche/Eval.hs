@@ -5,6 +5,8 @@ module Language.Hasche.Eval
     emptyEnv,
     withToplevelEnv,
     withNewScope,
+    withDWAction,
+    getCurrDWAction,
     lookup,
     set,
     bind,
@@ -20,6 +22,7 @@ import Control.Exception.Safe
 import Control.Monad
 import Control.Monad.Cont
 import Control.Monad.Reader
+import Data.Foldable
 import Data.Foldable.Extra
 import Data.Function
 import Data.HashTable.IO qualified as HT
@@ -89,11 +92,12 @@ instance (MonadIO m) => MonadSym (EvalT r m) where
 
 data Env m = Env
   { binds :: NE.NonEmpty (HT.BasicHashTable T.Text (Ref m (Object m))),
-    symbols :: HT.BasicHashTable T.Text (Object m)
+    symbols :: HT.BasicHashTable T.Text (Object m),
+    currDWAction :: [DWAction m]
   }
 
 emptyEnv :: (MonadIO m) => m (Env n)
-emptyEnv = liftIO $ liftA2 Env (NE.singleton <$> HT.new) HT.new
+emptyEnv = liftIO $ liftA3 Env (NE.singleton <$> HT.new) HT.new (pure [])
 
 withToplevelEnv :: EvalT r m a -> EvalT r m a
 withToplevelEnv m = do
@@ -103,6 +107,18 @@ withNewScope :: (MonadIO m) => EvalT r m a -> EvalT r m a
 withNewScope m = do
   b <- liftIO HT.new
   flip local m \env -> env {binds = NE.cons b (binds env)}
+
+withDWAction :: (MonadIO m) => EvalT r m () -> EvalT r m () -> EvalT r m a -> EvalT r m a
+withDWAction pre post m = do
+  dwid <- freshID
+  local (\env -> env {currDWAction = DWAction dwid pre post : currDWAction env}) do
+    pre
+    a <- m
+    post
+    pure a
+
+getCurrDWAction :: EvalT r m [DWAction (EvalT r m)]
+getCurrDWAction = asks currDWAction
 
 lookup' :: (MonadIO m, MonadThrow m) => T.Text -> EvalT r m (Ref (EvalT r m) (Object (EvalT r m)))
 lookup' k = do
@@ -154,5 +170,21 @@ apply ::
   EvalT r m (Object (EvalT r m))
 apply obj objs = case obj of
   Func f -> f objs
-  Cont k -> k $ fromMaybe undef (listToMaybe objs)
+  Cont as k -> do
+    curr <- asks currDWAction
+    callDWActions as curr
+    k $ fromMaybe undef (listToMaybe objs)
   _ -> throw EInvalidApplication
+
+dropCommonSuffixBy :: (Eq b) => (a -> b) -> [a] -> [a] -> ([a], [a])
+dropCommonSuffixBy f = go `on` reverse
+  where
+    go (x : xs) (y : ys)
+      | f x == f y = go xs ys
+    go xs ys = (reverse xs, reverse ys)
+
+callDWActions :: [DWAction (EvalT r m)] -> [DWAction (EvalT r m)] -> EvalT r m ()
+callDWActions saved curr = do
+  let (saved', curr') = dropCommonSuffixBy dwid saved curr
+  traverse_ dwpost curr'
+  traverse_ dwpre saved'

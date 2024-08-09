@@ -8,6 +8,7 @@ module Language.Hasche.Object
     Object,
     ObjRef,
     ObjKind,
+    DWAction (..),
     undef,
     empty,
     true,
@@ -80,7 +81,13 @@ data ObjKind m
   | Cons_ (ObjRef m) (ObjRef m)
   | Syn_ ([Object m] -> m (Object m))
   | Func_ ([Object m] -> m (Object m))
-  | Cont_ (Object m -> m (Object m))
+  | Cont_ [DWAction m] (Object m -> m (Object m))
+
+data DWAction m = DWAction
+  { dwid :: ObjID m,
+    dwpre :: m (),
+    dwpost :: m ()
+  }
 
 -- object constructors
 
@@ -126,8 +133,8 @@ syn f = newObject (Syn_ f)
 func :: (MonadIDSupply m) => ([Object m] -> m (Object m)) -> m (Object m)
 func f = newObject (Func_ f)
 
-cont :: (MonadIDSupply m) => (Object m -> m (Object m)) -> m (Object m)
-cont k = newObject (Cont_ k)
+cont :: (MonadIDSupply m) => [DWAction m] -> (Object m -> m (Object m)) -> m (Object m)
+cont as k = newObject (Cont_ as k)
 
 -- object destrcutors
 
@@ -164,8 +171,8 @@ pattern Syn f <- Object _ (Syn_ f)
 pattern Func :: ([Object m] -> m (Object m)) -> Object m
 pattern Func f <- Object _ (Func_ f)
 
-pattern Cont :: (Object m -> m (Object m)) -> Object m
-pattern Cont k <- Object _ (Cont_ k)
+pattern Cont :: [DWAction m] -> (Object m -> m (Object m)) -> Object m
+pattern Cont as k <- Object _ (Cont_ as k)
 
 {-# COMPLETE Undef, Empty, Bool, Num, Str, Sym, Port, Cons, Syn, Func, Cont #-}
 
